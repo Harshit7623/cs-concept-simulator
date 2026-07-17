@@ -1,7 +1,15 @@
-import { Bot, Send } from "lucide-react";
+import { Bot, Send, X } from "lucide-react";
 import { useState } from "react";
 import type { Meta } from "../../lib/types";
-export function ChatPanel({ concept }: { concept?: Meta }) {
+export function ChatPanel({
+  concept,
+  open,
+  onClose,
+}: {
+  concept?: Meta;
+  open: boolean;
+  onClose: () => void;
+}) {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<
     { role: "user" | "assistant"; content: string }[]
@@ -19,8 +27,10 @@ export function ChatPanel({ concept }: { concept?: Meta }) {
     ]);
     setInput("");
   };
+  if (!open) return null;
+
   return (
-    <aside className="hidden w-80 shrink-0 flex-col border-l border-border bg-surface/55 xl:flex">
+    <aside className="fixed bottom-4 right-4 z-40 flex h-[min(50vh,26rem)] w-[min(20rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-panel">
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">
         <span className="grid h-7 w-7 place-items-center rounded-lg bg-accent-algorithms/15 text-accent-algorithms">
           <Bot size={15} />
@@ -29,6 +39,14 @@ export function ChatPanel({ concept }: { concept?: Meta }) {
           <p className="text-sm font-medium">Concept copilot</p>
           <p className="text-[11px] text-muted">Context-aware learning help</p>
         </div>
+        <button
+          type="button"
+          aria-label="Close concept copilot"
+          onClick={onClose}
+          className="ml-auto rounded-md p-1 text-muted transition hover:bg-surface-hover hover:text-foreground"
+        >
+          <X size={15} />
+        </button>
       </div>
       <div className="scrollbar flex-1 space-y-3 overflow-y-auto p-4">
         {messages.length === 0 && (

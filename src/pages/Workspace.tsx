@@ -1,5 +1,5 @@
-import { lazy, Suspense, useMemo } from "react";
-import { Command, Menu, PanelRight, Search } from "lucide-react";
+import { lazy, Suspense, useState } from "react";
+import { Bot, Command, Menu, Search } from "lucide-react";
 import { useLocation, Link } from "react-router-dom";
 import { getConceptByPath, sectionLabels } from "../lib/contentLoader";
 import { Sidebar } from "../features/sidebar/Sidebar";
@@ -7,6 +7,7 @@ import { ChatPanel } from "../features/chat/ChatPanel";
 import { ReferencesList } from "../features/references/ReferencesList";
 import { ThemeToggle } from "../features/theme/ThemeToggle";
 export default function Workspace() {
+  const [chatOpen, setChatOpen] = useState(false);
   const loc = useLocation();
   const path = loc.pathname.replace(/^\/workspace\/?/, "").replace(/\/$/, "");
   const concept = getConceptByPath(path);
@@ -44,6 +45,14 @@ export default function Workspace() {
             <kbd className="font-mono text-[10px]">
               <Command size={10} className="inline" />K
             </kbd>
+          </button>
+          <button
+            type="button"
+            aria-label="Open concept copilot"
+            onClick={() => setChatOpen(true)}
+            className="rounded-lg border border-border p-2 text-muted transition hover:bg-surface-hover hover:text-foreground"
+          >
+            <Bot size={16} />
           </button>
           <button
             className="rounded-lg border border-border p-2 text-muted lg:hidden"
@@ -132,7 +141,11 @@ export default function Workspace() {
             )}
           </div>
         </main>
-        <ChatPanel concept={concept} />
+        <ChatPanel
+          concept={concept}
+          open={chatOpen}
+          onClose={() => setChatOpen(false)}
+        />
       </div>
     </div>
   );
