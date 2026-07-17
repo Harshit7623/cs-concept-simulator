@@ -7,7 +7,7 @@ const HeroScene = lazy(() => import("./HeroScene"));
 export default function Landing() {
   return (
     <main className="min-h-screen overflow-hidden">
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
+      <nav className="mx-auto flex w-full items-center px-8 py-5 lg:px-10">
         <div className="flex items-center gap-3">
           <div className="grid h-8 w-8 place-items-center rounded-lg bg-foreground font-mono text-sm text-background">
             ∷
@@ -16,16 +16,24 @@ export default function Landing() {
             CS Concept Simulator
           </span>
         </div>
-        <Link
-          to="/workspace"
-          className="text-sm text-muted hover:text-foreground"
-        >
-          Open workspace <ArrowRight className="ml-1 inline" size={14} />
-        </Link>
       </nav>
 
-      <section className="relative mx-auto grid max-w-7xl items-center gap-6 px-6 pb-20 pt-12 lg:grid-cols-[1.05fr_.95fr] lg:pt-20">
-        <div className="relative z-10">
+      <section className="relative min-h-[calc(100vh-5rem)] w-full overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 translate-x-[3%] scale-[1.02]">
+          <Suspense
+            fallback={
+              <div className="grid h-full place-items-center text-sm text-muted">
+                Booting scene…
+              </div>
+            }
+          >
+            <HeroScene />
+          </Suspense>
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_42%,transparent_0%,color-mix(in_oklab,var(--background)_22%,transparent)_42%,var(--background)_82%)]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
+        </div>
+        <div className="relative z-10 mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-[1500px] items-center px-8 py-20 lg:px-10">
+          <div className="max-w-3xl -translate-x-3 lg:-translate-x-6">
           <p className="mb-6 font-mono text-[11px] uppercase tracking-[.25em] text-accent-algorithms">
             An interactive CS lab
           </p>
@@ -39,30 +47,13 @@ export default function Landing() {
           </p>
           <div className="mt-9 flex gap-3">
             <Link
-              to="/workspace/algorithms/sorting/merge-sort"
+              to="/workspace"
               className="rounded-lg bg-foreground px-5 py-3 text-sm font-medium text-background transition hover:opacity-85"
             >
               Enter the lab <ArrowRight className="ml-2 inline" size={15} />
             </Link>
-            <Link
-              to="/workspace"
-              className="rounded-lg border border-border px-5 py-3 text-sm text-muted hover:bg-surface-hover"
-            >
-              Browse sections
-            </Link>
           </div>
-        </div>
-
-        <div className="h-[370px] min-h-0 rounded-3xl border border-border bg-surface/55 shadow-panel">
-          <Suspense
-            fallback={
-              <div className="grid h-full place-items-center text-sm text-muted">
-                Booting scene…
-              </div>
-            }
-          >
-            <HeroScene />
-          </Suspense>
+          </div>
         </div>
       </section>
     </main>
