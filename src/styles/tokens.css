@@ -1,0 +1,61 @@
+:root {
+  font-family: var(--font-sans);
+  color: var(--foreground);
+  background: var(--background);
+}
+[data-theme="dark"] {
+  --background: #0a0a0a;
+  --surface: #111111;
+  --surface-hover: #1a1a1a;
+  --border: rgba(255, 255, 255, 0.1);
+  --foreground: #ededed;
+  --foreground-muted: #a1a1a1;
+  --accent-algorithms: oklch(70% 0.15 250);
+  --accent-os: oklch(72% 0.16 55);
+  --accent-networking: oklch(72% 0.14 150);
+  --accent-systems: oklch(70% 0.15 300);
+  --accent-languages: oklch(72% 0.14 190);
+  --success: #5ee6a8;
+  --warning: #f3c969;
+  --error: #f07178;
+}
+[data-theme="light"] {
+  --background: #faf8f3;
+  --surface: #f0ece2;
+  --surface-hover: #e8e2d4;
+  --border: rgba(30, 25, 15, 0.08);
+  --foreground: #1f1c17;
+  --foreground-muted: #6b6558;
+  --accent-algorithms: oklch(55% 0.16 250);
+  --accent-os: oklch(58% 0.17 55);
+  --accent-networking: oklch(55% 0.15 150);
+  --accent-systems: oklch(55% 0.16 300);
+  --accent-languages: oklch(55% 0.15 190);
+  --success: #237a52;
+  --warning: #8b6400;
+  --error: #a53139;
+}
+:root {
+  --font-sans: Inter, Geist, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
+body {
+  background: var(--background);
+  color: var(--foreground);
+  transition:
+    background 0.18s,
+    color 0.18s;
+}
+button,
+input {
+  font: inherit;
+}

@@ -1,0 +1,12 @@
+# Merge sort
+
+Merge sort repeatedly divides an array into halves, sorts each half, then merges the sorted halves. The merge step is linear, and the recursion has logarithmic depth.
+
+```text
+mergeSort(A):
+  if length(A) <= 1: return A
+  split A into left and right
+  return merge(mergeSort(left), mergeSort(right))
+```
+
+**Complexity:** `O(n log n)` time and `O(n)` auxiliary space. It is stable, but unlike in-place quicksort it needs a temporary buffer.

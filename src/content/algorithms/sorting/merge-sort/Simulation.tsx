@@ -1,0 +1,94 @@
+import { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
+import { Pause, Play, RotateCcw, SkipBack, SkipForward } from "lucide-react";
+const source = [8, 3, 6, 2, 7, 4, 1, 5];
+export default function MergeSortSimulation() {
+  const [step, setStep] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  useEffect(() => {
+    if (!playing) return;
+    const id = setInterval(
+      () =>
+        setStep((s) => {
+          if (s >= source.length) {
+            setPlaying(false);
+            return s;
+          }
+          return s + 1;
+        }),
+      650,
+    );
+    return () => clearInterval(id);
+  }, [playing]);
+  const values = useMemo(
+    () =>
+      source
+        .map((v, i) => ({ v, i }))
+        .sort((a, b) => (a.i < step && b.i < step ? a.v - b.v : 0)),
+    [step],
+  );
+  return (
+    <div className="rounded-2xl border border-border bg-surface p-5">
+      <div className="mb-5 flex items-center justify-between">
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[.22em] text-muted">
+            Live simulation
+          </p>
+          <h3 className="mt-1 text-lg font-semibold">Divide, sort, merge</h3>
+        </div>
+        <span className="rounded-full bg-background px-3 py-1 font-mono text-xs text-muted">
+          pass {Math.min(step, source.length)}/8
+        </span>
+      </div>
+      <div className="flex h-48 items-end justify-center gap-2 rounded-xl border border-border bg-background p-6">
+        {values.map(({ v, i }) => (
+          <motion.div
+            key={i}
+            layout
+            className="flex w-8 flex-col items-center gap-2"
+            transition={{ type: "spring", stiffness: 280, damping: 24 }}
+          >
+            <motion.div
+              animate={{ height: `${v * 14}px`, opacity: i < step ? 1 : 0.55 }}
+              className="w-full rounded-t-md bg-accent-algorithms"
+            />
+            <span className="font-mono text-xs text-muted">{v}</span>
+          </motion.div>
+        ))}
+      </div>
+      <div className="mt-5 flex items-center gap-2">
+        <button
+          aria-label="Step back"
+          onClick={() => setStep((s) => Math.max(0, s - 1))}
+          className="rounded-lg border border-border p-2 text-muted hover:bg-surface-hover"
+        >
+          <SkipBack size={16} />
+        </button>
+        <button
+          aria-label={playing ? "Pause" : "Play"}
+          onClick={() => setPlaying((p) => !p)}
+          className="rounded-lg bg-foreground p-2 text-background"
+        >
+          {playing ? <Pause size={16} /> : <Play size={16} />}
+        </button>
+        <button
+          aria-label="Step forward"
+          onClick={() => setStep((s) => Math.min(source.length, s + 1))}
+          className="rounded-lg border border-border p-2 text-muted hover:bg-surface-hover"
+        >
+          <SkipForward size={16} />
+        </button>
+        <button
+          aria-label="Reset"
+          onClick={() => {
+            setStep(0);
+            setPlaying(false);
+          }}
+          className="ml-auto rounded-lg border border-border p-2 text-muted hover:bg-surface-hover"
+        >
+          <RotateCcw size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
