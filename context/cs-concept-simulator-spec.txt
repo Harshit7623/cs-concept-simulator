@@ -7,6 +7,12 @@ Where a decision is marked [LOCKED], do not deviate without asking.
 Where a decision is marked [AGENT DISCRETION], use best judgment within the
 stated constraints.
 
+Revision note: this spec was extended after initial drafting to add three
+features: the concept request form (Section 17), the synced code
+execution trace system (Section 18), and the Beta "Simulate the Logic"
+page (Section 19). Cross-references to these sections appear earlier in
+the document (Sections 2 and 3) — this is intentional, not an error.
+
 ================================================================================
 1. PROJECT OVERVIEW
 ================================================================================
@@ -57,8 +63,46 @@ Core requirements:
   pseudocode blocks.
 - Command palette: cmdk library (pairs natively with shadcn).
 - Deployment target: Vercel or Netlify (both support static SPA hosting +
-  a single serverless function in the same deploy — no separate backend
-  service required).
+  multiple serverless functions in the same deploy — no separate backend
+  service required). See Section 2.1 for the full list of functions.
+- Concept-request backend: GitHub Issues API, called from a dedicated
+  serverless function using a repo-scoped token. Full spec in Section 17.
+- Code execution trace tooling (existing concepts only, offline/dev-time
+  only — NOT a production service): OnlinePythonTutor
+  (github.com/pgbovine/OnlinePythonTutor, GPLv3), used locally by content
+  authors to generate precomputed trace.json files. Full spec in Section 18.
+- "Simulate the Logic" (Beta/Phase 2) backend: Cloudflare Workers, proxying
+  to an LLM with a constrained JSON output schema. Full spec in Section 19.
+
+2.1 Serverless functions overview (all live under /api, all deploy together)
+  /api/chat.ts               — AI chat panel proxy (Gemini). See Section 9.
+  /api/request-concept.ts    — Concept request form -> GitHub Issues. Section 17.
+  /api/simulate-logic.ts     — Beta "Simulate the Logic" page proxy (may be
+                                implemented as a Cloudflare Worker instead of
+                                a Vercel/Netlify function — see Section 19 for
+                                the tradeoff). Section 19.
+  All three are independent, stateless, single-purpose functions. None of
+  them share code beyond the common fetch/error-handling helpers in
+  /src/lib/api.ts (client side) — keep them decoupled so any one of them
+  can be modified or redeployed without touching the others.
+
+2.2 Team development environment
+  Primary dev OS for this team: Fedora Linux (all current contributors).
+  This matters specifically for Section 18 (offline code-trace authoring),
+  which needs a local Docker-compatible runtime:
+  - Fedora ships Podman by default, not Docker. Podman is Docker-CLI
+    compatible for this project's purposes (`alias docker=podman` works for
+    the commands in Section 18, or use `podman-docker` package which
+    provides a real `docker` shim: `sudo dnf install podman-docker`).
+  - If a contributor prefers actual Docker Engine on Fedora instead of
+    Podman, it is not in Fedora's default repos — install via Docker's
+    official Fedora repo, not `dnf install docker` (that pulls an unrelated
+    package called `docker` from Fedora's repos in some releases). Podman is
+    the simpler, pre-installed path and is what this spec assumes by default
+    in Section 18's commands.
+  - Nothing else in the stack (Vite, Node, the serverless functions) is
+    OS-specific — this note only applies to the offline trace-generation
+    tooling.
 
 Explicitly OUT of scope / do not add:
 - No Redux / Zustand / MobX — state needs are minimal (see Section 11).
@@ -79,6 +123,7 @@ Explicitly OUT of scope / do not add:
     /pages
         Landing.tsx               — hero + 3D scene (lazy-loaded scene)
         Workspace.tsx             — main 3-pane shell (sidebar/content/chat)
+        SimulateLogic.tsx         — Beta "Simulate the Logic" page (Section 19)
     /content                      <-- THE PLUGIN LAYER. All concepts live here.
         /algorithms
             /shortest-path
@@ -86,6 +131,8 @@ Explicitly OUT of scope / do not add:
                 Simulation.tsx
                 logic.mdx
                 references.json
+                trace.json          (OPTIONAL — only if this concept has a
+                                      synced code step-through, see Section 18)
             /sorting
                 /merge-sort
                     meta.json
@@ -124,11 +171,25 @@ Explicitly OUT of scope / do not add:
         /theme
             ThemeToggle.tsx
             ThemeProvider.tsx
+        /code-trace                  — synced simulation+code step-through
+                                        (Section 18)
+            ConceptWorkbench.tsx
+            CodeTracePanel.tsx
+        /request-concept             — "request a concept" form (Section 17)
+            RequestConceptForm.tsx
+            useRequestConcept.ts
+        /simulate-logic               — Beta free-form logic simulator
+                                        (Section 19)
+            LogicInputPanel.tsx
+            GenericSimulationRenderer.tsx
+            useSimulateLogic.ts
     /components/ui                — shadcn primitives (button, card, dialog,
                                      tabs, badge, tooltip, separator, etc.)
     /lib
         contentLoader.ts          — glob scanner, builds registry
-        api.ts                    — fetch wrapper to /api/chat
+        api.ts                    — fetch wrapper to /api/chat, /api/request-
+                                     concept, and the Simulate the Logic
+                                     worker endpoint
         types.ts                  — Meta, Reference, Section, ConceptNode types
         utils.ts                  — cn() helper, path parsing helpers
     /styles
@@ -136,7 +197,16 @@ Explicitly OUT of scope / do not add:
         globals.css               — Tailwind base + global resets
     main.tsx                      — app entry point
   /api
-      chat.ts                     — the ONE serverless function (Gemini proxy)
+      chat.ts                     — AI chat panel proxy (Gemini). Section 9.
+      request-concept.ts          — Concept request -> GitHub Issues. Section 17.
+  /workers
+      simulate-logic-worker.ts    — Cloudflare Worker for Beta "Simulate the
+                                     Logic" page, deployed separately from the
+                                     /api functions above. Section 19.
+  /tools
+      /trace-authoring             — local-only scripts/notes for generating
+                                     trace.json offline (Section 18). NOT
+                                     part of the production build.
   index.html
   vite.config.ts
   tailwind.config.ts
@@ -151,11 +221,17 @@ guarantees "adding a new concept = only add files, no code changes."
 
 4.1 Folder convention
 Every concept (and sub-concept) is a folder under /src/content/<section>/
-containing exactly these 4 files:
+containing these files:
   - meta.json          (required)
   - Simulation.tsx      (required)
   - logic.mdx           (required)
   - references.json     (required, may be an empty array initially)
+  - trace.json          (OPTIONAL — enables the synced simulation + code
+                          step-through view described in Section 18. Its
+                          mere presence in a concept folder is what triggers
+                          the split view in the UI; concepts without it
+                          behave exactly as they did before this feature
+                          existed — fully backward compatible.)
 
 Nesting is allowed arbitrarily deep to represent hierarchy, e.g.:
   /content/algorithms/graph/shortest-path/dijkstra/...
@@ -194,6 +270,13 @@ The registry builder must support arbitrary depth, not just 2 levels.
   Play / Pause / Step Forward / Step Back / Reset / Speed control. Build a
   reusable <SimulationControls /> component in /components/ui and have every
   Simulation.tsx use it, so all simulations feel consistent.
+- OPTIONAL extension for Section 18: Simulation.tsx MAY accept an
+  `externalStep?: number` prop. When provided (this only happens when a
+  sibling trace.json exists and ConceptWorkbench.tsx is driving the view),
+  the component must render exactly that step instead of managing its own
+  internal step counter, and ConceptWorkbench takes over rendering
+  <SimulationControls /> itself. When the prop is absent, Simulation.tsx
+  behaves exactly as originally specified — this is purely additive.
 
 4.4 logic.mdx contract
 - Contains the written explanation: problem definition, step-by-step logic,
@@ -221,6 +304,11 @@ Implemented in /src/lib/contentLoader.ts using Vite's import.meta.glob:
   const simulations = import.meta.glob('/src/content/**/Simulation.tsx');
   const logics       = import.meta.glob('/src/content/**/logic.mdx');
   const references   = import.meta.glob('/src/content/**/references.json', { eager: true });
+  const traces       = import.meta.glob('/src/content/**/trace.json', { eager: true });
+                        // OPTIONAL per concept — see Section 18. A concept
+                        // with no matching trace.json simply gets `null`
+                        // here; the registry must handle that as "no synced
+                        // code view for this concept," not as an error.
 
 Processing steps the agent must implement:
   1. For every meta.json match, parse the folder path into segments to derive
@@ -233,12 +321,26 @@ Processing steps the agent must implement:
      chunk.
   4. Attach the eagerly-loaded references.json content directly (small JSON,
      fine to bundle eagerly).
+  4a. Attach the eagerly-loaded trace.json content directly where present
+      (also small JSON, safe to bundle eagerly), plus a boolean
+      `hasCodeTrace` flag on the ConceptNode so the UI can decide whether to
+      render ConceptWorkbench.tsx (Section 18) or a plain Simulation.tsx.
   5. Export: 
        - `conceptTree: ConceptNode[]`      (for Sidebar)
        - `flatConceptIndex: ConceptNode[]`  (for search/command palette)
        - `getConceptByPath(path: string)`   (for the route resolver)
   6. This file must require ZERO manual edits when new content folders are
      added — it is purely derived from the filesystem scan.
+
+4.8 Relationship to Section 18 (code trace) and Section 19 (Simulate the Logic)
+  - trace.json (4.1) is the on-disk file; its full schema, the stepMap
+    alignment mechanism, and the ConceptWorkbench/CodeTracePanel components
+    that consume it are fully specified in Section 18 — not duplicated here
+    to avoid drift between two copies of the same schema.
+  - The "Simulate the Logic" Beta page (Section 19) does NOT use this plugin
+    architecture at all — it has no content folder, no meta.json, and is
+    generated live from user input. It is intentionally a separate system;
+    do not try to route it through registry.ts.
 
 4.7 Adding a new concept — the actual workflow the agent enables
   1. Create /src/content/<section>/<new-concept>/ with the 4 required files.
@@ -256,6 +358,13 @@ Using React Router v6, single dynamic catch-all pattern:
                                             wildcard remainder as the content
                                             path and resolves it via
                                             getConceptByPath()
+  /simulate                             -> SimulateLogic.tsx (Beta, Section
+                                            19). A separate top-level route,
+                                            NOT nested under /workspace,
+                                            since it has no content path to
+                                            resolve and is a different mode
+                                            of use (free-form, not tied to
+                                            the concept library).
 
 Inside Workspace.tsx:
   - Parse the URL path segments after /workspace/ into a content path
@@ -370,6 +479,8 @@ Workspace.tsx structure:
     - Logo/name (left)
     - Breadcrumb (center-left, derived from route path)
     - Command palette trigger / Cmd+K hint (center-right)
+    - "Simulate the Logic" nav link (Beta badge), routes to /simulate —
+      Section 19
     - Theme toggle (right)
 
   Body (flex row, fills remaining height)
@@ -378,13 +489,22 @@ Workspace.tsx structure:
     │       VS Code Explorer-style (chevron expand/collapse, indent per depth,
     │       icon per node type: section / concept / sub-concept)
     │     - Active path highlighted using the current section's accent color
+    │     - Footer of the sidebar: a low-key "Can't find a concept? Request
+    │       one" link/button, opening the RequestConceptForm (Section 17) —
+    │       also surface this same link on the empty-state of search results
+    │       and on the workspace 404 state, since those are the two moments
+    │       a user has just confirmed something isn't in the library yet.
     │
     ├── MainContent (center, flexible width)
     │     - Tabs or stacked sections: [Simulation | Logic | References]
     │       (agent discretion: tabs are cleaner for a dense IDE feel, stacked
     │       is simpler to implement — recommend tabs to match the "native app"
     │       goal, using shadcn Tabs component)
-    │     - Simulation.tsx rendered inside <Suspense fallback={<SkeletonSim/>}>
+    │     - Simulation tab: if `hasCodeTrace` is true for this concept,
+    │       render <ConceptWorkbench /> (Section 18), which itself renders
+    │       Simulation.tsx + CodeTracePanel.tsx side by side. If false,
+    │       render Simulation.tsx alone exactly as originally specified.
+    │       Either way it's wrapped in <Suspense fallback={<SkeletonSim/>}>
     │     - logic.mdx rendered inside <Suspense> via an MDX provider
     │     - References tab renders ReferencesList from references.json
     │
@@ -613,15 +733,348 @@ references.json:
 ]
 
 ================================================================================
-17. NON-GOALS / EXPLICIT CONSTRAINTS (DO NOT IMPLEMENT)
+17. CONCEPT REQUEST FORM (GITHUB ISSUES INTEGRATION) [LOCKED]
 ================================================================================
-- No user authentication, accounts, or login flow of any kind.
+17.1 Purpose
+When a user searches or browses the whole app and cannot find a concept they
+want, they can file a lightweight request instead of leaving empty-handed.
+This is an intake mechanism, not an auto-publish pipeline (see 17.8).
+
+17.2 Entry points (all open the same RequestConceptForm)
+  - Footer link in the Sidebar: "Can't find a concept? Request one."
+  - Empty-state of the Cmd+K search results ("No results — request this
+    concept instead").
+  - The Workspace 404 state, when a URL resolves to nothing in the registry.
+
+17.3 Form fields (exact — do not add/remove without reason)
+  - name              text, OPTIONAL (requester's name/handle; default to
+                       "Anonymous" if left blank)
+  - relatedSection     single-select, REQUIRED — options populated dynamically
+                       from the registry's existing top-level sections
+                       (algorithms / os / networking / systems / languages),
+                       plus a literal "Other / New Section" option
+  - conceptName        text, REQUIRED
+  - logic              textarea, REQUIRED — free description of the concept/
+                       algorithm/logic the requester wants simulated
+  - references          repeatable field group, REQUIRED, min 1 / max 5
+                       entries — each entry is { title: text, url: text }.
+                       There is NO "verified" checkbox exposed to the
+                       requester; verification stays an internal/manual step
+                       done by whoever triages the resulting GitHub issue.
+
+17.4 Client-side validation
+  - All required fields must be non-empty before the submit button enables.
+  - Each reference's `url` must pass a basic URL-format check.
+  - At least 1 complete reference (title + valid url) required; up to 5.
+
+17.5 Submission flow
+  POST the form payload as JSON to /api/request-concept.ts, which:
+    1. Re-validates the payload server-side (never trust client validation
+       alone).
+    2. Formats it into a GitHub Issue using a fixed markdown template, so
+       every incoming request is consistent to triage:
+
+         Title: [Concept Request] <conceptName>
+         Body:
+           **Requested by:** <name, or "Anonymous">
+           **Section:** <relatedSection>
+           **Logic:**
+           <logic>
+
+           **References:**
+           - <title> — <url>
+           - <title> — <url>
+
+    3. Calls the GitHub REST API: POST /repos/{owner}/{repo}/issues
+       - Applies labels: a fixed ["concept-request"] label plus a second
+         label matching the section (e.g. "section:algorithms") so requests
+         are filterable directly in GitHub's own issue UI without any extra
+         tooling on your side.
+    4. Returns a simple success/failure JSON response to the client.
+
+17.6 Authentication (answers "do I need a repo/auth token?" — yes)
+  - Required: a fine-grained GitHub Personal Access Token, scoped to ONLY
+    this one repository, with ONLY the "Issues: write" permission — no
+    broader repo access, no org-level access.
+  - This token belongs to the project owner (you), not the end user. It is
+    stored as an environment variable (`GITHUB_TOKEN`) in the serverless
+    function's runtime settings on Vercel/Netlify — never committed to the
+    repo, never sent to or readable from the client bundle.
+  - End users never authenticate with GitHub in any way. This preserves the
+    "no login" requirement everywhere else in the app — the token is a
+    service credential for your backend function, not a user-facing login.
+
+17.7 Anti-abuse measures (required, since this is a public write-capable
+     endpoint)
+  - Honeypot: include a hidden form field that real users never fill in and
+    bots typically do; if it arrives populated, silently reject (200 OK,
+    do nothing) rather than erroring, so bots don't learn to detect this.
+  - Basic per-IP/per-session cooldown inside the serverless function (e.g.
+    one accepted submission per 60 seconds) to avoid spam or exhausting
+    GitHub's API rate limits.
+
+17.8 What this flow is NOT
+  This is intake-only. An accepted/triaged request still becomes a real
+  concept through the normal manual process: a developer creates
+  /src/content/<section>/<concept>/ with the required files per Section 4
+  (and optionally trace.json per Section 18), same as authoring any other
+  concept. The GitHub issue is the backlog/queue — nothing here auto-
+  generates or auto-publishes content.
+
+================================================================================
+18. CODE EXECUTION TRACE SYSTEM (SIMULTANEOUS SIMULATION + CODE STEP-THROUGH)
+    [LOCKED — EXISTING CONCEPTS ONLY, NOT AVAILABLE ON THE SIMULATE-THE-LOGIC
+    PAGE]
+================================================================================
+18.1 Scope
+This feature applies ONLY to pre-authored concepts living under
+/src/content. It is explicitly NOT available on the Beta "Simulate the
+Logic" page (Section 19) — that page has no real source code to trace,
+only AI-generated abstract data.
+
+18.2 What the user sees
+Inside a concept's Simulation tab, when trace.json is present, two
+synchronized panels appear instead of just one:
+  - Primary panel: the existing hand-built abstract visual (Simulation.tsx)
+    — bars moving, graph nodes lighting up, whatever the concept's own
+    animation already does.
+  - Secondary panel: the concept's actual C-style code (or exact runnable
+    code, where the concept uses one) with the currently-executing line
+    highlighted, plus a live variables table and call-stack list — the same
+    mental model as stepping through a program in GDB inside VS Code.
+  - ONE shared set of controls (Play / Pause / Step Forward / Step Back /
+    Reset / Speed) drives BOTH panels at the same time — this is the
+    "simultaneous" requirement from the original request.
+
+18.3 Architecture — shared step state
+  New component: /src/features/code-trace/ConceptWorkbench.tsx
+  - Renders only when the current concept's registry entry has
+    `hasCodeTrace: true` (see Section 4.6/4.8). Otherwise the app renders
+    Simulation.tsx alone, unchanged from the original spec.
+  - Owns a single `currentStep: number` piece of state, plus play/pause/
+    speed state, and is the ONE place that renders <SimulationControls />
+    for this concept when a trace exists (Simulation.tsx does not render
+    its own controls in this mode — see the `externalStep` extension in
+    Section 4.3).
+  - Passes the correctly-mapped step index down to each child (see 18.4).
+
+  New component: /src/features/code-trace/CodeTracePanel.tsx
+  - Renders trace.json's `sourceCode` with syntax highlighting, using the
+    app's shared --font-mono token for visual consistency with the rest of
+    the app's code blocks (pseudocode in logic.mdx, etc.).
+  - Highlights the line for the current trace step.
+  - Renders a variables table and call-stack list sourced directly from
+    that step's data in trace.json — no computation happens at runtime,
+    it's pure lookup/render.
+
+18.4 Step alignment — stepMap
+  An abstract visual "step" (e.g. "highlight the smaller of two subarrays")
+  rarely maps 1:1 to a single line of code execution. Each trace.json
+  therefore includes a `stepMap` array: `stepMap[abstractStepIndex]` gives
+  the corresponding index into trace.json's `steps` array (or a [start,end]
+  range if one abstract step spans several execution steps). 
+  ConceptWorkbench uses `stepMap` to translate the one shared `currentStep`
+  into: the abstract index (passed to Simulation.tsx via `externalStep`)
+  and the mapped trace index (passed to CodeTracePanel).
+
+18.5 trace.json schema (optional 5th content file — full schema, see also
+     the pointer in Section 4.1/4.8)
+  Location: /src/content/<section>/.../<concept>/trace.json
+
+  {
+    "language": "c",
+    "sourceCode": "void mergeSort(int array[], int start, int end) {\n  ...\n}",
+    "steps": [
+      {
+        "line": 4,
+        "variables": { "start": 0, "end": 7, "middle": 3 },
+        "callStack": ["mergeSort(0,7)", "mergeSort(0,3)"],
+        "stdout": ""
+      }
+    ],
+    "stepMap": [0, 0, 1, 2, 2, 3]
+  }
+
+  Notes:
+  - `line` is 1-indexed against `sourceCode`.
+  - `variables` is a flat key/value object — keep it flat per step; nested
+    structures (arrays, pointers) can be represented as plain JSON
+    values/strings, CodeTracePanel is a dumb renderer, not an interpreter.
+  - Presence of this file alone is what flips the UI into split view; no
+    other configuration is needed anywhere else in the app.
+
+18.6 How trace.json actually gets generated — OFFLINE / DEV-TIME ONLY, never
+     a production service
+  Because the concept library is a fixed, pre-authored set (never arbitrary
+  user-submitted code), there is no need for live code execution in
+  production, ever. trace.json is generated once, by the content author, on
+  their own machine, and committed to the repo as a plain static file —
+  same as meta.json or references.json.
+
+  Recommended tool: OnlinePythonTutor
+  (github.com/pgbovine/OnlinePythonTutor, GPLv3), used strictly as a LOCAL
+  authoring aid, never deployed as a production service. It already
+  produces exactly this kind of step-by-step execution trace for Python,
+  Java, JavaScript, TypeScript, Ruby, C, and C++.
+
+  Correction/clarification on its C/C++ backend specifically: it does NOT
+  use gdb — it runs on a hacked build of Valgrind, packaged as a Docker
+  service the project calls "cokapi" (reference build:
+  github.com/JuezUN/opt-cpp-backend). Implications:
+    - Requires a container runtime to run locally — see 18.7 for the
+      Fedora-specific setup this team needs.
+    - Licensed GPLv3. Running it locally as a one-off authoring tool and
+      committing only its JSON *output* (not its source) to this project
+      does not place this project under GPL obligations — you're using its
+      output as data, not distributing or linking against the tool itself.
+      If the team ever considers running it as a live, always-on backend
+      service instead of a local authoring tool, revisit this at that time
+      (GPLv3 lacks AGPL's network-use clause, but it's still worth a second
+      look before making that change).
+    - Not serverless-friendly (needs a persistent process/container), which
+      is exactly why it stays out of the production architecture entirely —
+      see Section 2.1's function list: only /api/chat.ts,
+      /api/request-concept.ts, and the Simulate the Logic worker exist in
+      production. Nothing related to code tracing runs in production.
+
+  Alternative, often faster in practice: for concepts whose "code" is
+  closely mirrored by the abstract simulation's own internal state machine
+  (common when displaying C-style pseudocode rather than exact compiled C),
+  it's often quicker for the content author to hand-write the `steps` array
+  directly to match the animation beat-by-beat, rather than round-tripping
+  through Valgrind/OnlinePythonTutor at all. [AGENT DISCRETION] per concept,
+  on which approach is faster for that specific piece of content.
+
+18.7 Fedora-specific local setup for content authors
+  Both current team members develop on Fedora Linux. Fedora ships Podman by
+  default, not Docker Engine, which matters specifically for running
+  OnlinePythonTutor's C/C++ Docker-based backend locally as a one-off
+  authoring tool:
+    - Simplest path: `sudo dnf install podman-docker` — this provides a real
+      `docker` CLI shim backed by Podman, so the project's existing
+      `docker build` / `docker run` instructions from its README work
+      completely unmodified, no translation needed.
+    - Alternative without the shim: substitute `podman` for `docker`
+      directly in single-container commands (e.g.
+      `podman build -t opt-cpp-backend .` then
+      `podman run -p 4000:4000 opt-cpp-backend`), since Podman is
+      intentionally Docker-CLI-compatible for the common cases this tool
+      needs.
+    - Fedora's default rootless Podman mode is sufficient here — this is a
+      local, one-off, non-privileged authoring task, no need to run rootful.
+    - If a contributor genuinely wants Docker Engine itself on Fedora
+      instead of Podman, it is NOT in Fedora's default repos and must be
+      installed from Docker's official Fedora repo — do not `dnf install
+      docker`, that pulls an unrelated package by that name on some Fedora
+      releases.
+    - This entire setup only matters for the OFFLINE trace-authoring
+      workflow. It has zero bearing on the production deploy, which has no
+      Docker/Podman dependency whatsoever.
+
+18.8 Summary of what actually ships to production for this feature
+  - trace.json files (static, one per concept that has this feature),
+    served exactly like references.json — effectively zero runtime cost.
+  - ConceptWorkbench.tsx + CodeTracePanel.tsx — pure client-side rendering,
+    no backend calls of any kind.
+  - No new serverless function, no new environment variable, no container
+    runtime anywhere in production. This entire feature is front-end
+    rendering plus static data once a concept's trace has been authored.
+
+================================================================================
+19. "SIMULATE THE LOGIC" PAGE (BETA / PHASE 2) [AGENT DISCRETION — SCOPE MAY
+    EVOLVE, BUT KEEP THE GUARDRAILS BELOW]
+================================================================================
+19.1 Status
+This is explicitly a Beta / Phase 2 feature. Ship and stabilize the core
+concept library first; this page can be stubbed (or hidden behind a simple
+"Coming soon" state) initially and filled in once the rest of the app is
+solid. Label it "Beta" in the UI itself (nav link, page header) so user
+expectations are set correctly.
+
+19.2 Purpose
+Distinct from the pre-authored concept library. Lets a user describe an
+arbitrary piece of logic in free text (e.g. "what happens if I run bubble
+sort but swap on <= instead of <") and see a generated, generic simulation
+of it — not tied to any /src/content concept folder, not persisted
+anywhere, generated fresh per request.
+
+19.3 Route
+/simulate — a separate top-level route (see Section 5), reachable via the
+Beta nav link in the Workspace header (Section 7). Not nested under
+/workspace, since there's no content path to resolve.
+
+19.4 Backend — Cloudflare Workers
+Kept deliberately separate from the existing Vercel/Netlify serverless
+functions (/api/chat.ts, /api/request-concept.ts) so this experimental,
+higher-risk-of-misuse feature can be independently deployed, rate-limited,
+or pulled entirely without touching the core app's deploy pipeline.
+[AGENT DISCRETION] on exact routing/hosting glue between the SPA and the
+Worker — the non-negotiable constraint is that it stays a thin, stateless
+proxy, matching every other backend touchpoint in this app.
+
+19.5 Critical design constraint — never let the model generate arbitrary
+     rendering code or execute arbitrary user code
+  Constrain the LLM's output to a small, fixed set of JSON shapes the app
+  already knows how to render (reusing the same visual primitives built for
+  Section 10's simulation engine mapping):
+
+  {
+    "type": "array-sequence" | "graph-sequence" | "stack-sequence" | "queue-sequence",
+    "steps": [ /* shape depends on "type", always plain data — NEVER
+                  executable code, HTML, or markup of any kind */ ]
+  }
+
+  The system prompt sent to the model must explicitly restrict it to these
+  shapes only. The Worker (or client, whichever validates first) must check
+  the returned JSON against a schema (e.g. zod) BEFORE any rendering is
+  attempted. On any malformed or out-of-schema response: show a friendly
+  "Couldn't simulate that — try rephrasing" message. Never attempt to
+  render an unrecognized shape, and never `eval`/`dangerouslySetInnerHTML`
+  anything derived from the model's output.
+
+19.6 Rendering
+  Reuse the existing per-type visual building blocks already required for
+  the concept library (the same "array bars," "graph nodes," "stack/queue
+  blocks" primitives referenced in Section 10's engine mapping) — driven by
+  the AI-generated `steps` array instead of a hand-authored one. This means
+  Section 19 adds very little new rendering code; it's mostly a thin AI
+  layer plus schema validation on top of infrastructure the concept library
+  already needs to exist.
+
+19.7 No connection to Section 18
+  This page never has real source code to trace — the user only described
+  logic in prose, nothing was compiled or executed. The ConceptWorkbench /
+  CodeTracePanel split view from Section 18 does NOT apply here. Simulate
+  the Logic only ever shows the single generic abstract visual, no code
+  panel, ever.
+
+19.8 No persistence
+  Each simulation is generated fresh per request; nothing is saved, no
+  history across page loads or sessions — consistent with the whole app's
+  no-auth, no-database stance.
+
+================================================================================
+20. NON-GOALS / EXPLICIT CONSTRAINTS (DO NOT IMPLEMENT)
+================================================================================
+- No user authentication, accounts, or login flow of any kind, anywhere in
+  the app — including the concept request form and Simulate the Logic page.
 - No server-side database or persistent storage beyond the browser session.
 - No CMS or admin panel for managing content — content is managed purely by
   adding/editing files in /src/content, by developers, via git.
 - No SSR/SSG — pure client-rendered SPA.
-- No second backend service beyond the single /api/chat.ts serverless
-  function.
+- No backend service beyond the three explicitly defined touchpoints:
+  /api/chat.ts, /api/request-concept.ts, and the Simulate the Logic
+  Cloudflare Worker (Section 19).
+- No live/production code execution or compilation of any kind. trace.json
+  (Section 18) is always precomputed offline before it's committed; the
+  Simulate the Logic page (Section 19) only ever produces constrained JSON
+  data, never executable code.
+- No auto-publish pipeline from concept requests to live content — the
+  GitHub Issues flow (Section 17) is intake-only; publishing a requested
+  concept remains a manual, git-based process like any other concept.
+- No Docker/Podman/container runtime dependency in the production deploy —
+  that tooling (Section 18.7) is strictly a local, offline authoring aid,
+  never part of what ships or runs in production.
 - Do not hardcode any color value outside of /src/styles/tokens.css.
 - Do not hardcode sidebar/navigation structure anywhere — it must always be
   derived from the content registry.
