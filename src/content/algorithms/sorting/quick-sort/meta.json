@@ -1,0 +1,1 @@
+{"id":"quick-sort","title":"Quick Sort","section":"algorithms","parentPath":"algorithms/sorting","order":2,"difficulty":"intermediate","tags":["sorting","divide-and-conquer","partition","pivot"],"prerequisites":["algorithms/sorting/merge-sort"],"summary":"Visualize how quick sort partitions an array around a pivot and recursively sorts each side.","accentSection":"algorithms"}

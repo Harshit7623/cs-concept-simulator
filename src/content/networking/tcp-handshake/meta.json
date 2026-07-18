@@ -1,0 +1,1 @@
+{"id":"tcp-handshake","title":"TCP Three-Way Handshake","section":"networking","parentPath":"networking","order":1,"difficulty":"beginner","tags":["tcp","transport","connection","handshake","reliable"],"prerequisites":[],"summary":"Step through the SYN, SYN-ACK, ACK exchange that establishes a reliable TCP connection.","accentSection":"networking"}

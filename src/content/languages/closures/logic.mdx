@@ -1,0 +1,44 @@
+## What closures solve
+
+Functions often need to carry context — values computed earlier — into a later call. Without closures a function can only use its explicit parameters and global variables. Closures let a function bundle its body with the variables it references from the enclosing scope, making it self-contained.
+
+<div className="logic-grid">
+  <section className="logic-card"><span className="logic-eyebrow" style={{ color: "var(--accent-languages)" }}>Core idea</span><h3>Function + lexical environment</h3><p>A closure is a pair: the function code and a reference to the environment where the function was defined. Captured variables survive even when the outer scope has returned.</p></section>
+  <section className="logic-card"><span className="logic-eyebrow" style={{ color: "var(--accent-languages)" }}>Invariant</span><h3>Captured vars outlive their scope</h3><p>Any variable referenced by an inner function is allocated on the heap (or equivalent) so it persists as long as the closure exists, not only while the outer function runs.</p></section>
+</div>
+
+## How they work
+
+At the implementation level, a closure is a struct containing:
+1. A pointer to the function's machine code.
+2. Slots for each captured variable (or a pointer to a shared environment frame).
+
+When the outer function returns, its stack frame is destroyed but the closure's environment is kept alive by the garbage collector or reference counting.
+
+## Pseudocode
+
+~~~javascript
+function createCounter() {
+    let count = 0;             // local variable
+    return function() {        // closure
+        count = count + 1;     // captures `count`
+        return count;
+    };
+}
+
+const counter = createCounter();
+console.log(counter());        // 1
+console.log(counter());        // 2
+console.log(counter());        // 3
+~~~
+
+## Complexity
+
+<div className="complexity-grid"><div><span className="complexity-label">Memory</span><strong className="complexity-value">O(k)</strong><span className="complexity-note">k = number of captured variables; each persists in the heap</span></div><div><span className="complexity-label">Creation</span><strong className="complexity-value">O(k)</strong><span className="complexity-note">copy or reference env slots when closure is created</span></div><div><span className="complexity-label">Call</span><strong className="complexity-value">O(1)</strong><span className="complexity-note">after creation, call overhead matches a normal function call</span></div></div>
+
+## Common pitfalls
+
+- **Loop capture**: creating closures inside a loop that all reference the same mutable variable (classic `var` bug in JS).
+- **Memory leak**: accidentally keeping a closure alive holds all captured variables in memory, preventing garbage collection.
+- **Unexpected sharing**: multiple closures capturing the same mutable variable share mutations.
+- **Performance**: capturing large objects prevents them from being freed until the closure itself is unreachable.

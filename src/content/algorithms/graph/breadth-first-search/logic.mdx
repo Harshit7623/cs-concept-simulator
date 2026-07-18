@@ -1,0 +1,52 @@
+## What BFS solves
+
+Breadth-first search traverses a graph level by level, visiting all neighbors of a node before moving to the next level. It finds the shortest path in unweighted graphs and is the foundation for many graph algorithms.
+
+<div className="logic-grid">
+  <section className="logic-card"><span className="logic-eyebrow">Core idea</span><h3>Queue frontier</h3><p>Maintain a queue of nodes to visit. Dequeue the front, mark it as visited, and enqueue every unvisited neighbor. The queue ensures level-by-level exploration.</p></section>
+  <section className="logic-card"><span className="logic-eyebrow">Invariant</span><h3>Visited set prevents cycles</h3><p>Once a node is visited, it is never enqueued again. This guarantees termination and that each node is processed exactly once.</p></section>
+</div>
+
+## Algorithm steps
+
+1. Mark the source node as visited and enqueue it.
+2. While the queue is not empty:
+   - Dequeue a node.
+   - For each unvisited neighbor, mark it visited and enqueue it.
+3. The distance from the source to each node is tracked on first discovery.
+
+## Pseudocode
+
+~~~c
+void bfs(Graph* graph, int source) {
+    int visited[MAX_NODES] = {0};
+    int queue[MAX_NODES];
+    int front = 0;
+    int rear = 0;
+
+    visited[source] = 1;
+    queue[rear++] = source;
+
+    while (front < rear) {
+        int current = queue[front++];
+        for (int i = 0; i < graph->degree[current]; i++) {
+            int neighbor = graph->adj[current][i];
+            if (!visited[neighbor]) {
+                visited[neighbor] = 1;
+                queue[rear++] = neighbor;
+            }
+        }
+    }
+}
+~~~
+
+## Complexity
+
+<div className="complexity-grid"><div><span className="complexity-label">Time</span><strong className="complexity-value">O(V + E)</strong><span className="complexity-note">each vertex and edge visited once</span></div><div><span className="complexity-label">Space</span><strong className="complexity-value">O(V)</strong><span className="complexity-note">queue and visited array</span></div></div>
+
+## Common pitfalls
+
+- Forgetting to mark nodes as visited when they are enqueued (not when dequeued), causing duplicate enqueues.
+- Using a stack instead of a queue, which turns BFS into DFS.
+- Not handling disconnected graph components — BFS only reaches nodes in the same component as the source.
+- Infinite loops if the graph has no visited tracking for cycles.

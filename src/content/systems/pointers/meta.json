@@ -1,0 +1,1 @@
+{"id":"pointers","title":"Pointers & Dereferencing","section":"systems","parentPath":"systems","order":1,"difficulty":"beginner","tags":["pointers","memory","addresses","dereference","reference"],"prerequisites":[],"summary":"Visualize how pointers store memory addresses and how dereferencing reads the value at that address.","accentSection":"systems"}

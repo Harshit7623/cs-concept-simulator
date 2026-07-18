@@ -1,0 +1,16 @@
+[
+  {
+    "title": "Round-Robin Scheduling — OSDev",
+    "type": "article",
+    "source": "OSDev Wiki",
+    "url": "https://wiki.osdev.org/Scheduling_Algorithms",
+    "verified": true
+  },
+  {
+    "title": "Operating Systems: Three Easy Pieces — Scheduling",
+    "type": "book",
+    "source": "OSTEP",
+    "url": "https://pages.cs.wisc.edu/~remzi/OSTEP/",
+    "verified": true
+  }
+]

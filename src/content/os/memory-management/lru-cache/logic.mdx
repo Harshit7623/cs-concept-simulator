@@ -1,0 +1,74 @@
+## What LRU caching solves
+
+LRU (Least Recently Used) caching stores a limited number of items and automatically evicts the item that was accessed least recently when new items need space. It exploits temporal locality — recently accessed data is likely to be accessed again.
+
+<div className="logic-grid">
+  <section className="logic-card"><span className="logic-eyebrow" style={{ color: 'var(--accent-os)' }}>Core idea</span><h3>Evict the least recently used</h3><p>Maintain items in order of access. When the cache is full, remove the item at the tail (least recently used) and insert the new item at the head (most recently used). On a hit, move the accessed item to the head.</p></section>
+  <section className="logic-card"><span className="logic-eyebrow" style={{ color: 'var(--accent-os)' }}>Invariant</span><h3>Order reflects recency</h3><p>The cache maintains a strict ordering from most-recently-used (head) to least-recently-used (tail). Every access promotes the touched item to the head.</p></section>
+</div>
+
+## Algorithm steps
+
+1. Look up the key in the hash map.
+2. If found (cache hit):
+   - Move the corresponding node to the head of the linked list.
+   - Return the value.
+3. If not found (cache miss):
+   - If the cache is full, remove the node at the tail (LRU) and delete its key from the hash map.
+   - Create a new node, insert it at the head of the linked list.
+   - Add the key to the hash map.
+
+## Pseudocode
+
+~~~c
+typedef struct Node {
+    int key;
+    int value;
+    struct Node *prev;
+    struct Node *next;
+} Node;
+
+typedef struct {
+    Node *head;
+    Node *tail;
+    Node *map[10000];
+    int capacity;
+    int size;
+} LRUCache;
+
+int lruGet(LRUCache *cache, int key) {
+    if (cache->map[key] == NULL) {
+        return -1;
+    }
+    Node *node = cache->map[key];
+    moveToHead(cache, node);
+    return node->value;
+}
+
+void lruPut(LRUCache *cache, int key, int value) {
+    if (cache->map[key] != NULL) {
+        Node *node = cache->map[key];
+        node->value = value;
+        moveToHead(cache, node);
+        return;
+    }
+    if (cache->size == cache->capacity) {
+        removeTail(cache);
+    }
+    Node *node = createNode(key, value);
+    addToHead(cache, node);
+    cache->map[key] = node;
+    cache->size++;
+}
+~~~
+
+## Complexity
+
+<div className="complexity-grid"><div><span className="complexity-label" style={{ color: 'var(--accent-os)' }}>Time (get)</span><strong className="complexity-value">O(1)</strong><span className="complexity-note">hash map lookup + list reorder</span></div><div><span className="complexity-label" style={{ color: 'var(--accent-os)' }}>Time (put)</span><strong className="complexity-value">O(1)</strong><span className="complexity-note">insert or update at head</span></div><div><span className="complexity-label" style={{ color: 'var(--accent-os)' }}>Space</span><strong className="complexity-value">O(n)</strong><span className="complexity-note">capacity number of nodes</span></div></div>
+
+## Common pitfalls
+
+- Forgetting to update the hash map when a node is evicted from the list.
+- Not handling the case where the cache has only one node (head == tail).
+- Breaking the doubly-linked list pointers when moving or removing nodes.
+- Using O(n) operations in get/put defeats the purpose of the cache.

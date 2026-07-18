@@ -51,6 +51,14 @@ function Node({ node, depth = 0 }: { node: ConceptNode; depth?: number }) {
 }
 export function Sidebar() {
   const [hidden, setHidden] = useState(false);
+  const location = useLocation();
+  const contentPath = location.pathname
+    .replace(/^\/workspace\/?/, "")
+    .replace(/\/$/, "");
+  const activeSection = contentPath.split("/")[0];
+  const sectionNodes = conceptTree.filter(
+    (node) => node.section === activeSection,
+  );
 
   if (hidden) {
     return (
@@ -84,16 +92,18 @@ export function Sidebar() {
           <PanelLeftClose size={15} />
         </button>
       </div>
-      {conceptTree.map((n) => (
-        <div key={n.path}>
-          <div
-            className={`px-4 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-[.16em] ${accentClass(n.section)}`}
-          >
-            {sectionLabels[n.section] ?? n.section}
-          </div>
-          <Node node={n} />
-        </div>
-      ))}
+      <div
+        className={`px-4 pb-2 pt-3 text-[10px] font-semibold uppercase tracking-[.16em] ${accentClass(activeSection)}`}
+      >
+        {sectionLabels[activeSection] ?? "Current section"}
+      </div>
+      {sectionNodes.length > 0 ? (
+        sectionNodes.map((node) => <Node key={node.path} node={node} />)
+      ) : (
+        <p className="px-4 py-2 text-xs leading-relaxed text-muted">
+          No concepts in this section yet.
+        </p>
+      )}
     </aside>
   );
 }

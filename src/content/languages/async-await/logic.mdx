@@ -1,0 +1,54 @@
+## What async/await solves
+
+I/O-bound programs spend most of their time waiting — for network responses, disk reads, or timers. Blocking the thread during each wait wastes CPU. Async/await lets a function pause without blocking the thread, so other work can proceed, and automatically resume when the awaited operation completes.
+
+<div className="logic-grid">
+  <section className="logic-card"><span className="logic-eyebrow" style={{ color: "var(--accent-languages)" }}>Core idea</span><h3>Non-blocking suspension</h3><p>An async function that hits `await` yields control back to the event loop, which can run other code. When the awaited promise settles, the function is re-queued and resumes from where it paused.</p></section>
+  <section className="logic-card"><span className="logic-eyebrow" style={{ color: "var(--accent-languages)" }}>Invariant</span><h3>One thread, cooperative scheduling</h3><p>JavaScript uses a single thread. Async/await does not create parallelism — it interleaves tasks on the same thread by voluntarily yielding at each `await` point.</p></section>
+</div>
+
+## How it works
+
+The runtime maintains:
+- **Call stack**: the currently executing frames.
+- **Microtask queue**: promise callbacks and resumed async frames (higher priority).
+- **Macrotask queue**: timers, I/O callbacks (lower priority).
+
+The event loop repeatedly: run all microtasks, then pick one macrotask, run it to completion, then repeat.
+
+## Pseudocode
+
+~~~javascript
+async function fetchData(url) {
+    const response = await fetch(url);   // suspend here
+    const data     = await response.json();
+    return data;
+}
+
+function main() {
+    console.log("start");
+    const promise = fetchData("/api/data");
+    console.log("after async call");      // executes before fetchData resumes
+    promise.then(data => console.log(data));
+    console.log("end");
+}
+
+main();
+// Output order:
+//   "start"
+//   "after async call"
+//   "end"
+//   (later) data from fetch
+~~~
+
+## Complexity
+
+<div className="complexity-grid"><div><span className="complexity-label">Concurrency</span><strong className="complexity-value">1 thread</strong><span className="complexity-note">cooperative multitasking on a single thread</span></div><div><span className="complexity-label">Overhead</span><strong className="complexity-value">O(1) per await</strong><span className="complexity-note">state machine transformation + promise allocation</span></div><div><span className="complexity-label">Scheduling</span><strong className="complexity-value">FIFO</strong><span className="complexity-note">microtasks before macrotasks; FIFO within each queue</span></div></div>
+
+## Common pitfalls
+
+- **Forgotten `await`**: calling an async function without `await` returns a promise; errors become unhandled rejections.
+- **Blocking the event loop**: a synchronous CPU-heavy operation inside an async function stalls all tasks.
+- **Race conditions**: shared mutable state between concurrent async functions without synchronization.
+- **Promise chain vs await**: mixing `.then()` and `await` in the same function can lead to confusing execution order.
+- **Unhandled rejections**: an awaited promise that rejects throws; if not caught, the error is swallowed.

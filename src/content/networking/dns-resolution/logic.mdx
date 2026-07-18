@@ -1,0 +1,63 @@
+## What DNS resolution solves
+
+DNS translates human-readable domain names (like example.com) into machine-routable IP addresses. Without DNS, users would need to memorize numeric IP addresses for every website.
+
+<div className="logic-grid">
+  <section className="logic-card"><span className="logic-eyebrow" style={{ color: 'var(--accent-networking)' }}>Core idea</span><h3>Hierarchical name lookup</h3><p>DNS uses a distributed, hierarchical database. Queries start at the client, go to a recursive resolver, then traverse root, TLD, and authoritative nameservers to find the final IP address.</p></section>
+  <section className="logic-card"><span className="logic-eyebrow" style={{ color: 'var(--accent-networking)' }}>Invariant</span><h3>Each level delegates to the next</h3><p>Root servers know about TLD servers. TLD servers know about authoritative servers. Authoritative servers know the actual IP address for the domain.</p></section>
+</div>
+
+## Steps
+
+1. Client queries the recursive resolver for example.com.
+2. Recursive resolver queries a root nameserver.
+3. Root responds with a referral to the .com TLD nameserver.
+4. Recursive resolver queries the .com TLD nameserver.
+5. TLD responds with a referral to the authoritative nameserver for example.com.
+6. Recursive resolver queries the authoritative nameserver.
+7. Authoritative responds with the IP address.
+8. Recursive resolver returns the IP to the client and caches the result.
+
+## Pseudocode
+
+~~~c
+typedef struct {
+    char domain[256];
+    char ip[16];
+} DNSRecord;
+
+typedef struct {
+    DNSRecord cache[100];
+    int cacheSize;
+} Resolver;
+
+char *recursiveLookup(Resolver *res, char *domain) {
+    for (int i = 0; i < res->cacheSize; i++) {
+        if (strcmp(res->cache[i].domain, domain) == 0) {
+            return res->cache[i].ip;
+        }
+    }
+    char *rootResult = queryNameserver("root", domain);
+    if (isAuthoritative(rootResult)) {
+        return cacheResult(res, domain, rootResult);
+    }
+    char *tld = extractTLD(domain);
+    char *tldResult = queryNameserver(tld, domain);
+    if (isAuthoritative(tldResult)) {
+        return cacheResult(res, domain, tldResult);
+    }
+    char *authResult = queryNameserver(domain, domain);
+    return cacheResult(res, domain, authResult);
+}
+~~~
+
+## Complexity
+
+<div className="complexity-grid"><div><span className="complexity-label" style={{ color: 'var(--accent-networking)' }}>Time</span><strong className="complexity-value">O(log n)</strong><span className="complexity-note">~3-4 round trips (cached: O(1))</span></div><div><span className="complexity-label" style={{ color: 'var(--accent-networking)' }}>Space</span><strong className="complexity-value">O(n)</strong><span className="complexity-note">cache entries held by resolver</span></div></div>
+
+## Common pitfalls
+
+- Cache poisoning — an attacker injects a fake DNS record into a resolver's cache.
+- Assuming DNS resolution always succeeds — networks may have blocked or misconfigured resolvers.
+- Ignoring TTL values — stale cached records can cause connectivity issues after IP changes.
+- DNS over TCP vs UDP — large responses require TCP fallback when the truncation bit is set.

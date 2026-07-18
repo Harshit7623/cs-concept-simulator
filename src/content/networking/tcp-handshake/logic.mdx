@@ -1,0 +1,64 @@
+## What the TCP handshake solves
+
+The three-way handshake establishes a reliable, connection-oriented channel between two hosts. It synchronizes sequence numbers, negotiates options, and allocates buffer resources before any application data flows.
+
+<div className="logic-grid">
+  <section className="logic-card"><span className="logic-eyebrow" style={{ color: 'var(--accent-networking)' }}>Core idea</span><h3>Three messages, synchronized state</h3><p>SYN synchronizes initial sequence numbers. SYN-ACK acknowledges the client's sequence number and announces the server's. ACK confirms both sides are ready to communicate.</p></section>
+  <section className="logic-card"><span className="logic-eyebrow" style={{ color: 'var(--accent-networking)' }}>Invariant</span><h3>Both sides agree on sequence numbers</h3><p>After the handshake, both client and server know each other's starting sequence number and have confirmed bidirectional connectivity.</p></section>
+</div>
+
+## Three steps
+
+1. **SYN**: Client sends a TCP segment with SYN flag and an initial sequence number x. Client transitions from CLOSED to SYN_SENT.
+2. **SYN-ACK**: Server responds with SYN and ACK flags, its own sequence number y, and acknowledgement x+1. Server transitions from LISTEN to SYN_RCVD.
+3. **ACK**: Client sends an ACK with sequence number x+1 and acknowledgement y+1. Both sides transition to ESTABLISHED.
+
+## Pseudocode
+
+~~~c
+typedef enum {
+    CLOSED, LISTEN, SYN_SENT, SYN_RCVD, ESTABLISHED
+} TCPState;
+
+typedef struct {
+    TCPState state;
+    int seqNum;
+    int ackNum;
+} TCPConnection;
+
+void clientHandshake(TCPConnection *conn) {
+    conn->state = CLOSED;
+    conn->seqNum = rand();
+    sendSegment(SYN, conn->seqNum, 0);
+    conn->state = SYN_SENT;
+    Segment *synack = receiveSegment();
+    conn->ackNum = synack->seqNum + 1;
+    conn->seqNum = conn->seqNum + 1;
+    sendSegment(ACK, conn->seqNum, conn->ackNum);
+    conn->state = ESTABLISHED;
+}
+
+void serverHandshake(TCPConnection *conn) {
+    conn->state = LISTEN;
+    Segment *syn = receiveSegment();
+    conn->seqNum = rand();
+    conn->ackNum = syn->seqNum + 1;
+    sendSegment(SYN | ACK, conn->seqNum, conn->ackNum);
+    conn->state = SYN_RCVD;
+    Segment *ack = receiveSegment();
+    conn->state = ESTABLISHED;
+}
+~~~
+
+## Connection state diagram
+
+The handshake progresses through these states:
+- Client: CLOSED → SYN_SENT → ESTABLISHED
+- Server: CLOSED → LISTEN → SYN_RCVD → ESTABLISHED
+
+## Common pitfalls
+
+- Server receives a SYN but client never receives the SYN-ACK (half-open connection).
+- Sequence number wraparound on long-lived connections (mitigated by TCP timestamps).
+- SYN flood attacks where the server allocates resources before receiving the final ACK.
+- Forgetting to increment both sequence and acknowledgement numbers properly.

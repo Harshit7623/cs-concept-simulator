@@ -1,0 +1,1 @@
+{"id":"round-robin","title":"Round-Robin Scheduling","section":"os","parentPath":"os/process-scheduling","order":1,"difficulty":"intermediate","tags":["scheduling","cpu","time-slice","preemption","context-switch"],"prerequisites":[],"summary":"See how the CPU scheduler cycles through processes, giving each a fixed time quantum before switching.","accentSection":"os"}

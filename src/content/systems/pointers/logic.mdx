@@ -1,0 +1,44 @@
+## What pointers solve
+
+High-level languages hide memory addresses behind references or objects, but systems programming needs direct access to memory. Pointers let a program store and manipulate the address of a variable, enabling dynamic data structures, array traversal, and call-by-reference function parameters.
+
+<div className="logic-grid">
+  <section className="logic-card"><span className="logic-eyebrow" style={{ color: "var(--accent-systems)" }}>Core idea</span><h3>Pointers are memory addresses</h3><p>A pointer is a variable whose value is the address of another variable. Dereferencing (`*p`) follows the address to read or write the target.</p></section>
+  <section className="logic-card"><span className="logic-eyebrow" style={{ color: "var(--accent-systems)" }}>Invariant</span><h3>Indirection level matches type</h3><p>`int *` points to an `int`; `int **` points to an `int *`. The number of stars equals the number of dereferences needed to reach the value.</p></section>
+</div>
+
+## Key operations
+
+1. **Address-of (`&`)**: obtains the memory address of a variable.
+2. **Dereference (`*`)**: accesses the value stored at the address a pointer holds.
+3. **Pointer arithmetic**: adding `n` to a pointer advances it by `n × sizeof(T)` bytes.
+4. **Null pointer**: a pointer that points to nothing (address `0`); dereferencing it crashes.
+
+## Pseudocode
+
+~~~c
+int main(void) {
+    int  x  = 42;      /* x is an int */
+    int *p  = &x;      /* p holds the address of x */
+    *p = 99;           /* dereference p — x is now 99 */
+
+    int  y  = *p;      /* read via dereference — y is 99 */
+
+    int **pp = &p;     /* pointer to pointer */
+    **pp = 7;          /* double dereference — x is now 7 */
+
+    return 0;
+}
+~~~
+
+## Complexity
+
+<div className="complexity-grid"><div><span className="complexity-label">Access</span><strong className="complexity-value">O(1)</strong><span className="complexity-note">dereference is a single memory load</span></div><div><span className="complexity-label">Arithmetic</span><span className="complexity-value" style={{ fontFamily: "var(--font-mono)", fontSize: "1.1rem" }}>O(1)</span><span className="complexity-note">pointer add is integer add × sizeof(T)</span></div><div><span className="complexity-label">Chasing</span><strong className="complexity-value">O(n)</strong><span className="complexity-note">linked list traversal = n pointer follows</span></div></div>
+
+## Common pitfalls
+
+- **Null dereference**: accessing `*NULL` causes a segmentation fault.
+- **Dangling pointer**: using a pointer after the target memory has been freed.
+- **Type mismatch**: assigning an `int*` to a `float*` and dereferencing violates strict aliasing.
+- **Off-by-one in pointer arithmetic**: walking past the end of an array.
+- **Forgetting `&` vs `*`**: `p = &x` sets the pointer; `*p = v` sets the target.

@@ -1,0 +1,1 @@
+{"id":"breadth-first-search","title":"Breadth-First Search","section":"algorithms","parentPath":"algorithms/graph","order":1,"difficulty":"intermediate","tags":["graph","traversal","queue","shortest-path","unweighted"],"prerequisites":[],"summary":"Explore a graph level by level, watching the queue frontier expand outward from the source node.","accentSection":"algorithms"}

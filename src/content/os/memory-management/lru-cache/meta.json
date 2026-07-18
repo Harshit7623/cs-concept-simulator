@@ -1,0 +1,1 @@
+{"id":"lru-cache","title":"LRU Cache","section":"os","parentPath":"os/memory-management","order":1,"difficulty":"intermediate","tags":["caching","memory","eviction","paging","locality"],"prerequisites":[],"summary":"Watch a cache fill up and evict the least recently used item when new entries need space.","accentSection":"os"}

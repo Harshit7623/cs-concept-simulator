@@ -1,0 +1,52 @@
+## What quick sort solves
+
+Quick sort orders an array by selecting a pivot, partitioning elements around it, and recursing on both sides. Unlike merge sort, it sorts in-place and has better cache performance.
+
+<div className="logic-grid">
+  <section className="logic-card"><span className="logic-eyebrow">Core idea</span><h3>Partition around a pivot</h3><p>Pick a pivot element. Rearrange the array so every element left of the pivot is ≤ pivot and every element right of the pivot is ≥ pivot. Then recurse.</p></section>
+  <section className="logic-card"><span className="logic-eyebrow">Invariant</span><h3>Pivot finds its home</h3><p>After each partition step the pivot sits at its final sorted position. The two sub-arrays on either side are not yet sorted but are bounded by the pivot value.</p></section>
+</div>
+
+## Algorithm steps
+
+1. If the array has one or zero elements, return (base case).
+2. Choose a pivot — common choices: last element, random element, or median-of-three.
+3. Partition: rearrange so elements ≤ pivot come before it and elements ≥ pivot come after.
+4. Recursively apply quick sort to the left and right sub-arrays.
+
+## Pseudocode
+
+~~~c
+void quickSort(int arr[], int low, int high) {
+    if (low >= high) {
+        return;
+    }
+    int pi = partition(arr, low, high);
+    quickSort(arr, low, pi - 1);
+    quickSort(arr, pi + 1, high);
+}
+
+int partition(int arr[], int low, int high) {
+    int pivot = arr[high];
+    int i = low;
+    for (int j = low; j < high; j++) {
+        if (arr[j] <= pivot) {
+            swap(&arr[i], &arr[j]);
+            i++;
+        }
+    }
+    swap(&arr[i], &arr[high]);
+    return i;
+}
+~~~
+
+## Complexity
+
+<div className="complexity-grid"><div><span className="complexity-label">Time</span><strong className="complexity-value">O(n log n)</strong><span className="complexity-note">average case; O(n²) worst case</span></div><div><span className="complexity-label">Space</span><strong className="complexity-value">O(log n)</strong><span className="complexity-note">recursion stack (in-place)</span></div><div><span className="complexity-label">Stability</span><strong className="complexity-value">Unstable</strong><span className="complexity-note">long-distance swaps break order</span></div></div>
+
+## Common pitfalls
+
+- Picking a bad pivot every time (already sorted input with last-element pivot) causes O(n²).
+- Forgetting to exclude the pivot index from recursive calls leads to infinite recursion.
+- Off-by-one errors in the partition loop bounds can skip or double-swap elements.
+- Not handling equal elements correctly can make one partition empty.

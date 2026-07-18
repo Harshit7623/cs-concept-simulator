@@ -1,0 +1,1 @@
+{"id":"stack-vs-heap","title":"Stack vs Heap Memory","section":"systems","parentPath":"systems/memory","order":1,"difficulty":"beginner","tags":["memory","stack","heap","allocation","lifetime"],"prerequisites":[],"summary":"See how function call frames grow and shrink on the stack while dynamic allocations live on the heap.","accentSection":"systems"}

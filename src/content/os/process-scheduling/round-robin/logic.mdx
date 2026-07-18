@@ -1,0 +1,58 @@
+## What round-robin scheduling solves
+
+Round-robin scheduling ensures every process gets a fair share of the CPU by cycling through the ready queue and giving each a fixed time quantum. It prevents starvation and provides predictable response times for interactive systems.
+
+<div className="logic-grid">
+  <section className="logic-card"><span className="logic-eyebrow" style={{ color: 'var(--accent-os)' }}>Core idea</span><h3>Fair time distribution</h3><p>Each process receives a small fixed time slice (quantum). When the quantum expires, the process is preempted and moved to the back of the ready queue, and the next process runs.</p></section>
+  <section className="logic-card"><span className="logic-eyebrow" style={{ color: 'var(--accent-os)' }}>Invariant</span><h3>No process is skipped</h3><p>The ready queue is a circular FIFO. Every process gets a turn before any process gets a second turn, ensuring fairness and bounded wait times.</p></section>
+</div>
+
+## Algorithm steps
+
+1. Maintain a FIFO queue of ready processes.
+2. Pop the front process from the queue.
+3. Run the process for up to one time quantum.
+4. If the process finishes within the quantum, mark it complete.
+5. Otherwise, preempt it and push it to the back of the queue.
+6. Repeat until all processes are complete.
+
+## Pseudocode
+
+~~~c
+typedef struct {
+    int pid;
+    int burst;
+    int remaining;
+} Process;
+
+void roundRobin(Process queue[], int n, int quantum) {
+    int front = 0;
+    int rear = n;
+    while (front < rear) {
+        Process *current = &queue[front];
+        int runTime = (current->remaining < quantum)
+                      ? current->remaining
+                      : quantum;
+        current->remaining -= runTime;
+        if (current->remaining == 0) {
+            printf("Process %d finished\n", current->pid);
+            front++;
+        } else {
+            queue[rear] = queue[front];
+            rear++;
+            front++;
+        }
+    }
+}
+~~~
+
+## Complexity
+
+<div className="complexity-grid"><div><span className="complexity-label" style={{ color: 'var(--accent-os)' }}>Time</span><strong className="complexity-value">O(n)</strong><span className="complexity-note">per context switch (finding next process)</span></div><div><span className="complexity-label" style={{ color: 'var(--accent-os)' }}>Enqueue/Dequeue</span><strong className="complexity-value">O(1)</strong><span className="complexity-note">FIFO queue operations</span></div><div><span className="complexity-label" style={{ color: 'var(--accent-os)' }}>Overhead</span><strong className="complexity-value">O(n · t/q)</strong><span className="complexity-note">context switches per unit time</span></div></div>
+
+## Common pitfalls
+
+- Choosing a quantum that is too small causes excessive context switching and poor throughput.
+- Choosing a quantum that is too large degrades interactivity and approaches FCFS behavior.
+- Ignoring I/O bursts — processes that perform I/O may not use their full quantum.
+- Not accounting for context-switch overhead in the quantum calculation.

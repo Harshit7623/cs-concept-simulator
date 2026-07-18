@@ -1,0 +1,1 @@
+{"id":"dns-resolution","title":"DNS Resolution","section":"networking","parentPath":"networking","order":2,"difficulty":"beginner","tags":["dns","domain","resolution","hierarchy","nameserver"],"prerequisites":[],"summary":"Follow a DNS query as it travels from your browser through recursive resolvers to authoritative nameservers.","accentSection":"networking"}

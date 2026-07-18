@@ -1,0 +1,1 @@
+{"id":"binary-search","title":"Binary Search","section":"algorithms","parentPath":"algorithms/searching","order":1,"difficulty":"beginner","tags":["searching","divide-and-conquer","sorted-array","logarithmic"],"prerequisites":[],"summary":"Watch how binary search finds a target in a sorted array by repeatedly halving the search range.","accentSection":"algorithms"}

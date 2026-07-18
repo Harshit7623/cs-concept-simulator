@@ -1,0 +1,47 @@
+## What stack vs heap solves
+
+Programs need memory for two fundamentally different kinds of data: function call state (arguments, return addresses, local variables) and data that outlives the function that created it. The stack handles the first with minimal overhead; the heap handles the second with flexibility.
+
+<div className="logic-grid">
+  <section className="logic-card"><span className="logic-eyebrow" style={{ color: "var(--accent-systems)" }}>Core idea</span><h3>LIFO stack, dynamic heap</h3><p>The stack grows and shrinks as functions are called and return — it is last-in-first-out. The heap is a free-form pool where blocks can be allocated and freed in any order.</p></section>
+  <section className="logic-card"><span className="logic-eyebrow" style={{ color: "var(--accent-systems)" }}>Invariant</span><h3>Stack frames nest perfectly</h3><p>Every function call pushes a frame and every return pops it. A frame is always alive when its caller is alive, so stack memory never fragments.</p></section>
+</div>
+
+## How they work
+
+The **stack** is a contiguous region of memory managed by a pointer (the stack pointer `SP`). Calling a function decrements `SP` by the size of the new frame; returning increments it. No bookkeeping is needed — allocation and deallocation are one instruction each.
+
+The **heap** is a region managed by the allocator (`malloc`/`free` or `new`/`delete`). The allocator maintains free lists or lookup tables to find a suitably sized block. Allocation is **O(n)** in worst case; fragmentation can waste space.
+
+## Pseudocode
+
+~~~c
+void funcA(void) {
+    int x = 10;                        /* on the stack */
+    int *ptr = (int *)malloc(32);      /* 32 bytes on the heap */
+    funcB(ptr);
+    free(ptr);                         /* must free manually */
+}
+
+void funcB(int *buf) {
+    int y = 20;                        /* on the stack */
+    /* buf points to heap memory */
+}
+
+int main(void) {
+    funcA();
+    return 0;
+}
+~~~
+
+## Comparison
+
+<div className="complexity-grid"><div><span className="complexity-label">Speed</span><strong className="complexity-value" style={{ color: "var(--accent-systems)" }}>O(1)</strong><span className="complexity-note">stack push/pop is a single pointer add</span></div><div><span className="complexity-label">Speed</span><strong className="complexity-value">O(n) – O(log n)</strong><span className="complexity-note">heap alloc may walk free lists</span></div><div><span className="complexity-label">Size</span><strong className="complexity-value">~MB</strong><span className="complexity-note">stack is small (e.g., 8 MB typical)</span></div><div><span className="complexity-label">Size</span><strong className="complexity-value">~GB</strong><span className="complexity-note">heap is limited by RAM / address space</span></div><div><span className="complexity-label">Lifetime</span><strong className="complexity-value">Automatic</strong><span className="complexity-note">stack variables die when the function returns</span></div><div><span className="complexity-label">Lifetime</span><strong className="complexity-value">Manual</strong><span className="complexity-note">heap lives until free() or program exit</span></div><div><span className="complexity-label">Fragmentation</span><strong className="complexity-value">None</strong><span className="complexity-note">stack is perfectly nested</span></div><div><span className="complexity-label">Fragmentation</span><strong className="complexity-value">External</strong><span className="complexity-note">heap can fragment over time</span></div></div>
+
+## Common pitfalls
+
+- **Stack overflow**: deep recursion or large stack allocations exceed the fixed stack size.
+- **Dangling pointer**: returning a pointer to a stack-allocated variable — the memory is reclaimed when the function returns.
+- **Memory leak**: forgetting to `free()` heap memory; the block remains allocated until the process exits.
+- **Double free**: calling `free()` on an already freed pointer causes undefined behavior.
+- **Use-after-free**: accessing heap memory after it has been freed.
