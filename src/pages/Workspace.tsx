@@ -21,6 +21,16 @@ import { Sidebar } from "../features/sidebar/Sidebar";
 import { ChatPanel } from "../features/chat/ChatPanel";
 import { ReferencesList } from "../features/references/ReferencesList";
 import { ThemeToggle } from "../features/theme/ThemeToggle";
+import { GenerateInput } from "../features/generate/GenerateInput";
+import { useGeneratedConcepts } from "../features/generate/GeneratedConceptsContext";
+import { VariationInput } from "../features/generate/VariationInput";
+import { CommandPalette } from "../features/search/CommandPalette";
+import { DynamicSimulation } from "../components/simulation/DynamicSimulation";
+import {
+  ActiveSimulationProvider,
+  useRequiredActiveSimulation,
+} from "../components/simulation/ActiveSimulationContext";
+import type { SimulationSpec } from "../lib/simulationSpec";
 
 const sectionVisuals = {
   algorithms: { icon: Workflow, accent: "text-accent-algorithms" },
@@ -49,8 +59,9 @@ function SectionOverview({ section }: { section?: string }) {
             : "Choose a section to start exploring interactive computer science concepts."}
         </p>
       </div>
+      {!section && <GenerateInput />}
       {!section ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {Object.entries(sectionLabels).map(([key, label]) => {
             const count = flatConceptIndex.filter(
               (item) => item.section === key,
@@ -156,17 +167,158 @@ function SectionOverview({ section }: { section?: string }) {
   );
 }
 
+function WorkspaceTabs({ pathname, tab }: { pathname: string; tab: string }) {
+  return (
+    <div className="mb-5 flex gap-1 border-b border-border">
+      <Link
+        to={pathname + "?tab=simulation"}
+        className={`px-3 py-2 text-sm ${tab === "simulation" ? "border-b-2 border-foreground text-foreground" : "text-muted"}`}
+      >
+        Simulation
+      </Link>
+      <Link
+        to={pathname + "?tab=logic"}
+        className={`px-3 py-2 text-sm ${tab === "logic" ? "border-b-2 border-foreground text-foreground" : "text-muted"}`}
+      >
+        Logic
+      </Link>
+      <Link
+        to={pathname + "?tab=references"}
+        className={`px-3 py-2 text-sm ${tab === "references" ? "border-b-2 border-foreground text-foreground" : "text-muted"}`}
+      >
+        References
+      </Link>
+    </div>
+  );
+}
+
+function GeneratedConceptContent({
+  slug,
+  spec,
+  tab,
+  pathname,
+}: {
+  slug: string;
+  spec: SimulationSpec;
+  tab: string;
+  pathname: string;
+}) {
+  const { conceptId, currentStep, setGroundingContext } =
+    useRequiredActiveSimulation();
+
+  return (
+    <>
+      <div className="mb-7">
+        <p className="font-mono text-[10px] uppercase tracking-[.2em] text-muted">
+          Generated · {spec.visualType} simulation
+        </p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight">{spec.title}</h1>
+        <p className="mt-3 max-w-2xl text-muted">
+          An interactive concept created for this browser session.
+        </p>
+      </div>
+      <WorkspaceTabs pathname={pathname} tab={tab} />
+      {tab === "references" ? (
+        <article className="rounded-2xl border border-border bg-surface p-5">
+          <div className="flex items-start gap-3">
+            <span className="rounded-lg bg-background p-2 text-accent-algorithms">
+              <Bot size={16} aria-hidden="true" />
+            </span>
+            <div>
+              <h2 className="font-semibold">AI-generated concept</h2>
+              <p className="mt-1 text-sm leading-relaxed text-muted">
+                This lesson was generated from your prompt and is stored only for the current browser session.
+              </p>
+            </div>
+          </div>
+        </article>
+      ) : tab === "logic" ? (
+        <article className="max-w-none text-foreground">
+          <p className="font-mono text-[10px] uppercase tracking-[.18em] text-muted">
+            C-style pseudocode
+          </p>
+          <pre className="logic-code">
+            <code>
+              {spec.pseudocode.split("\n").map((line, index) => (
+                <button
+                  key={`${index}-${line}`}
+                  type="button"
+                  onClick={() =>
+                    setGroundingContext({
+                      conceptId,
+                      currentStep,
+                      stateSnapshot: {
+                        visualType: spec.visualType,
+                        selectedPseudocodeLine: {
+                          number: index + 1,
+                          text: line,
+                        },
+                      },
+                    })
+                  }
+                  className="block w-full rounded px-2 text-left font-inherit text-inherit outline-none transition hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-accent-algorithms"
+                >
+                  <span className="mr-3 inline-block w-5 select-none text-right text-muted">
+                    {index + 1}
+                  </span>
+                  {line || " "}
+                </button>
+              ))}
+            </code>
+          </pre>
+          <div className="complexity-grid">
+            <div>
+              <span className="complexity-label">Time complexity</span>
+              <strong className="complexity-value">{spec.complexity.time}</strong>
+            </div>
+            <div>
+              <span className="complexity-label">Space complexity</span>
+              <strong className="complexity-value">{spec.complexity.space}</strong>
+            </div>
+          </div>
+          <section>
+            <p className="font-mono text-[10px] uppercase tracking-[.18em] text-muted">
+              Pitfalls
+            </p>
+            <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-relaxed text-muted">
+              {spec.pitfalls.map((pitfall, index) => (
+                <li key={`${pitfall}-${index}`}>{pitfall}</li>
+              ))}
+            </ul>
+          </section>
+        </article>
+      ) : (
+        <>
+          <DynamicSimulation spec={spec} />
+          <VariationInput
+            slug={slug}
+            spec={spec}
+            currentStep={currentStep}
+          />
+        </>
+      )}
+    </>
+  );
+}
+
 export default function Workspace() {
   const [chatOpen, setChatOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const { generatedConcepts, getGeneratedConcept } = useGeneratedConcepts();
   const loc = useLocation();
   const path = loc.pathname.replace(/^\/workspace\/?/, "").replace(/\/$/, "");
-  const concept = getConceptByPath(path);
+  const trail = path.split("/").filter(Boolean);
+  const isGeneratedRoute = trail[0] === "generated" && trail.length === 2;
+  const generatedConcept = isGeneratedRoute
+    ? getGeneratedConcept(trail[1])
+    : undefined;
+  const concept = generatedConcept ? undefined : getConceptByPath(path);
   const Simulation = concept?.simulation ? lazy(concept.simulation) : null;
   const Logic = concept?.logic ? lazy(concept.logic) : null;
   const tab = new URLSearchParams(loc.search).get("tab") ?? "simulation";
-  const trail = path.split("/").filter(Boolean);
   const isSectionRoute = trail.length === 1 && Boolean(sectionLabels[trail[0]]);
-  return (
+
+  const workspace = (
     <div className="flex h-screen flex-col overflow-hidden">
       <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-surface/45 px-4">
         <Link to="/" className="flex items-center gap-2 text-sm font-semibold">
@@ -180,18 +332,26 @@ export default function Workspace() {
           <Link to="/workspace" className="hover:text-foreground">
             workspace
           </Link>
-          {trail.map((t, i) => (
-            <span key={t}>
-              {" "}
-              /{" "}
-              <span className={i === trail.length - 1 ? "text-foreground" : ""}>
-                {i === 0 ? (sectionLabels[t] ?? t) : (concept?.title ?? t)}
+          {trail.map((segment, index) => (
+            <span key={segment}>
+              {" "}/ {" "}
+              <span
+                className={index === trail.length - 1 ? "text-foreground" : ""}
+              >
+                {index === 0
+                  ? (sectionLabels[segment] ??
+                    (segment === "generated" ? "Generated" : segment))
+                  : (generatedConcept?.spec.title ?? concept?.title ?? segment)}
               </span>
             </span>
           ))}
         </div>
         <div className="ml-auto flex items-center gap-2">
-          <button className="hidden items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs text-muted hover:bg-surface-hover sm:flex">
+          <button
+            type="button"
+            onClick={() => setCommandPaletteOpen(true)}
+            className="hidden items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs text-muted hover:bg-surface-hover sm:flex"
+          >
             <Search size={14} /> Search{" "}
             <kbd className="font-mono text-[10px]">
               <Command size={10} className="inline" />K
@@ -215,10 +375,17 @@ export default function Workspace() {
         </div>
       </header>
       <div className="flex min-h-0 flex-1">
-        {trail.length > 0 && <Sidebar />}
+        {(trail.length > 0 || generatedConcepts.length > 0) && <Sidebar />}
         <main className="scrollbar min-w-0 flex-1 overflow-y-auto">
           <div className="mx-auto max-w-4xl px-5 py-8 sm:px-8">
-            {concept ? (
+            {generatedConcept ? (
+              <GeneratedConceptContent
+                slug={generatedConcept.slug}
+                spec={generatedConcept.spec}
+                tab={tab}
+                pathname={loc.pathname}
+              />
+            ) : concept ? (
               <>
                 <div className="mb-7">
                   <p className="font-mono text-[10px] uppercase tracking-[.2em] text-muted">
@@ -230,26 +397,7 @@ export default function Workspace() {
                   </h1>
                   <p className="mt-3 max-w-2xl text-muted">{concept.summary}</p>
                 </div>
-                <div className="mb-5 flex gap-1 border-b border-border">
-                  <Link
-                    to={loc.pathname + "?tab=simulation"}
-                    className={`px-3 py-2 text-sm ${tab === "simulation" ? "border-b-2 border-foreground text-foreground" : "text-muted"}`}
-                  >
-                    Simulation
-                  </Link>
-                  <Link
-                    to={loc.pathname + "?tab=logic"}
-                    className={`px-3 py-2 text-sm ${tab === "logic" ? "border-b-2 border-foreground text-foreground" : "text-muted"}`}
-                  >
-                    Logic
-                  </Link>
-                  <Link
-                    to={loc.pathname + "?tab=references"}
-                    className={`px-3 py-2 text-sm ${tab === "references" ? "border-b-2 border-foreground text-foreground" : "text-muted"}`}
-                  >
-                    References
-                  </Link>
-                </div>
+                <WorkspaceTabs pathname={loc.pathname} tab={tab} />
                 {tab === "references" ? (
                   <ReferencesList references={concept.references} />
                 ) : tab === "logic" ? (
@@ -284,6 +432,7 @@ export default function Workspace() {
                 <h1 className="mt-3 text-2xl font-semibold">
                   Choose a topic from the library
                 </h1>
+                <GenerateInput />
                 <Link
                   to="/workspace/algorithms/sorting/merge-sort"
                   className="mt-6 inline-block rounded-lg bg-foreground px-4 py-2 text-sm text-background"
@@ -295,11 +444,32 @@ export default function Workspace() {
           </div>
         </main>
         <ChatPanel
-          concept={concept}
+          concept={
+            generatedConcept
+              ? { title: generatedConcept.spec.title }
+              : concept
+          }
           open={chatOpen}
           onClose={() => setChatOpen(false)}
         />
+        <CommandPalette
+          open={commandPaletteOpen}
+          onOpenChange={setCommandPaletteOpen}
+        />
       </div>
     </div>
+  );
+
+  return generatedConcept ? (
+    <ActiveSimulationProvider
+      key={generatedConcept.slug}
+      conceptId={generatedConcept.slug}
+      maxStep={generatedConcept.spec.steps.length}
+      resetKey={generatedConcept.spec}
+    >
+      {workspace}
+    </ActiveSimulationProvider>
+  ) : (
+    workspace
   );
 }

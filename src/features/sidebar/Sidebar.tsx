@@ -8,9 +8,10 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { conceptTree, sectionLabels } from "../../lib/contentLoader";
+import { sectionLabels } from "../../lib/contentLoader";
 import { accentClass } from "../../lib/utils";
 import type { ConceptNode } from "../../lib/types";
+import { useGeneratedConcepts } from "../generate/GeneratedConceptsContext";
 function Node({ node, depth = 0 }: { node: ConceptNode; depth?: number }) {
   const [open, setOpen] = useState(true);
   const loc = useLocation();
@@ -51,14 +52,22 @@ function Node({ node, depth = 0 }: { node: ConceptNode; depth?: number }) {
 }
 export function Sidebar() {
   const [hidden, setHidden] = useState(false);
+  const { conceptTree } = useGeneratedConcepts();
   const location = useLocation();
   const contentPath = location.pathname
     .replace(/^\/workspace\/?/, "")
     .replace(/\/$/, "");
   const activeSection = contentPath.split("/")[0];
-  const sectionNodes = conceptTree.filter(
-    (node) => node.section === activeSection,
+  const generatedRoot = conceptTree.find((node) => node.section === "generated");
+  const activeSectionNodes = conceptTree.filter(
+    (node) => node.section === activeSection && node.section !== "generated",
   );
+  const sectionNodes =
+    activeSection === "generated"
+      ? generatedRoot
+        ? [generatedRoot]
+        : []
+      : [...activeSectionNodes, ...(generatedRoot ? [generatedRoot] : [])];
 
   if (hidden) {
     return (
@@ -95,7 +104,9 @@ export function Sidebar() {
       <div
         className={`px-4 pb-2 pt-3 text-[10px] font-semibold uppercase tracking-[.16em] ${accentClass(activeSection)}`}
       >
-        {sectionLabels[activeSection] ?? "Current section"}
+        {activeSection === "generated"
+          ? "Generated"
+          : (sectionLabels[activeSection] ?? "Current section")}
       </div>
       {sectionNodes.length > 0 ? (
         sectionNodes.map((node) => <Node key={node.path} node={node} />)
