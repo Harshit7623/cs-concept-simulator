@@ -8,6 +8,15 @@ Trace Kernel is a client-rendered learning workspace. It makes computer science 
 
 There is no login, authentication, database, CMS, account system, or persistent server-side user data.
 
+## Brand identity
+
+- Product name: **Trace Kernel**. Use this exact spelling in visible product copy, document titles, page metadata, and assistant labels.
+- Canonical visible mark: `public/trace-kernel-mark.svg`.
+- Render the visible mark through `src/components/TraceKernelMark.tsx`; do not redraw it inline or add per-page logo copies. The component intentionally loads `/trace-kernel-mark.svg` from `public`.
+- Browser favicon: `public/trace-kernel-mark.svg`, configured in `index.html`.
+- `public/trace-kernel-mark.png` may remain as a supplied source asset, but it is not the active UI or favicon asset.
+- The shared wordmark is uppercase, compact, and mono-spaced with expanded tracking: `TRACE KERNEL`.
+
 ## Technology and constraints
 
 - Vite + React + TypeScript, strict mode.
@@ -58,7 +67,7 @@ The main content preserves maximum width for simulations and future synchronized
 
 The landing page uses the full viewport width. It contains the brand mark on the left, no top-right workspace link, a full-screen R3F background visual, a headline positioned slightly left, a 3D visual field nudged slightly right, and one primary Enter the lab action routed to /workspace.
 
-The scene represents the subject matter with a rotating graph of connected nodes, a wireframe icosahedron core, orbital torus rings, floating wireframe data fragments, stars, spark particles, mouse parallax, and slow autonomous motion.
+The scene uses the supplied `Meshy_AI_Something_in_the_Dark_0720221034_texture.glb` model as the central branded 3D visual. It has slow autonomous motion, pointer-responsive rotation, and the hold-to-trace light pulse. Keep the model in the lazy-loaded scene so Three.js does not load on workspace routes.
 
 The scene is lazy-loaded so Three.js is not loaded on workspace routes.
 

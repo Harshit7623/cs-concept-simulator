@@ -2,6 +2,8 @@
 
 Add a concept by creating one folder below src/content. The app scans this folder automatically, so do not edit routes, the sidebar, section cards, or the workspace shell.
 
+Do not edit global branding while adding a concept. The product name is **Trace Kernel** and the shared visible logo is `TraceKernelMark`, backed by `public/trace-kernel-mark.svg`.
+
 ## Folder location
 
 Use kebab-case for every folder name. The concept folder name and metadata id must match.

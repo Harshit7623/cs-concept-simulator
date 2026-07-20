@@ -3,6 +3,8 @@
 > **Status:** Approved by user on 2026-07-19. Ready for execution.
 > **Scope:** Five in-scope pieces + two enablers. No edits made yet to source — this document is the source of truth for the rebuild.
 
+> **Brand baseline:** The product is **Trace Kernel**. Keep `TraceKernelMark` as the only in-app logo component; it loads `public/trace-kernel-mark.svg`. The same SVG is the browser favicon. The PNG in `public` is not an active brand asset.
+
 ---
 
 ## TL;DR of the 5 in-scope pieces + 2 enablers

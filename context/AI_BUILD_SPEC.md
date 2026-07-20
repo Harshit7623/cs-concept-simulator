@@ -14,6 +14,7 @@
 - Zero friction: no login, no accounts, no backend database.
 - State-driven extensibility: sidebar and search derive entirely from content state (static filesystem + runtime storage). Adding a concept requires zero app-shell or routing changes.
 - Premium native aesthetic: Vercel / Linear / VS Code register, not a marketing site.
+- Brand contract: the product is named **Trace Kernel**. Use `TraceKernelMark` for every in-app logo placement; it loads the canonical `public/trace-kernel-mark.svg` asset. `index.html` uses that same SVG for the favicon. Do not replace it with hand-drawn SVG markup or the unused PNG source asset.
 
 ---
 

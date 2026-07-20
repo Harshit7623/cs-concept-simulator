@@ -18,6 +18,14 @@ the document (Sections 2 and 3) — this is intentional, not an error.
 ================================================================================
 Name: Trace Kernel
 
+Brand assets:
+- Canonical visible logo and favicon: public/trace-kernel-mark.svg.
+- All in-app logo placements must use src/components/TraceKernelMark.tsx, which
+  loads that public SVG. Do not duplicate the mark in page components.
+- public/trace-kernel-mark.png is a supplied source asset only; it is not the
+  active UI logo or favicon.
+- Shared wordmark: TRACE KERNEL, rendered in compact uppercase mono styling.
+
 What it is: A web application for learning computer science concepts through
 interactive visual simulations. Organized into top-level sections (Algorithms,
 Operating Systems, Networking, System Programming, Languages, etc.), each
@@ -114,7 +122,9 @@ Explicitly OUT of scope / do not add:
 ================================================================================
 /project-root
   /public
-      favicon, static assets
+      trace-kernel-mark.svg      — canonical visible logo and favicon
+      trace-kernel-mark.png      — supplied source asset; not active in UI
+      favicon, other static assets
   /src
     /app
         App.tsx                 — root component, mounts router + providers
