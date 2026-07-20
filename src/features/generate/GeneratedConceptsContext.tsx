@@ -2,7 +2,9 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -12,8 +14,20 @@ import {
   type SimulationSpec,
 } from "../../lib/simulationSpec";
 import type { ConceptNode } from "../../lib/types";
+import quickSortFixture from "../../content/seed/quick-sort.fixture.json";
+import dijkstraFixture from "../../content/seed/dijkstra.fixture.json";
+import dfsFixture from "../../content/seed/dfs.fixture.json";
 
 const STORAGE_PREFIX = "generated:";
+
+export const CUSTOM_SIMULATIONS_SECTION = "generated";
+export const CUSTOM_SIMULATIONS_LABEL = "Custom Simulations";
+
+const DEMO_FIXTURES: SimulationSpec[] = [
+  SimulationSpecSchema.parse(quickSortFixture),
+  SimulationSpecSchema.parse(dijkstraFixture),
+  SimulationSpecSchema.parse(dfsFixture),
+];
 
 export type GeneratedConcept = {
   slug: string;
@@ -25,10 +39,7 @@ type GeneratedConceptsContextValue = {
   conceptTree: ConceptNode[];
   getGeneratedConcept: (slug: string) => GeneratedConcept | undefined;
   addGeneratedConcept: (spec: SimulationSpec) => GeneratedConcept;
-  replaceGeneratedConcept: (
-    slug: string,
-    spec: SimulationSpec,
-  ) => GeneratedConcept | undefined;
+  replaceGeneratedConcept: (slug: string, spec: SimulationSpec) => void;
 };
 
 const GeneratedConceptsContext = createContext<
@@ -90,20 +101,18 @@ function readStoredConcepts(): GeneratedConcept[] {
 }
 
 function createGeneratedTree(generatedConcepts: GeneratedConcept[]): ConceptNode[] {
-  if (generatedConcepts.length === 0) return staticConceptTree;
-
   const children: ConceptNode[] = generatedConcepts.map(({ slug, spec }, index) => ({
     id: `generated:${slug}`,
     title: spec.title,
-    section: "generated",
-    parentPath: "generated",
+    section: CUSTOM_SIMULATIONS_SECTION,
+    parentPath: CUSTOM_SIMULATIONS_SECTION,
     order: index,
     difficulty: "intermediate",
-    tags: [spec.visualType, "AI-generated"],
+    tags: [spec.visualType, "Custom simulation"],
     prerequisites: [],
-    summary: "A session-generated interactive concept.",
+    summary: "A custom interactive concept created in this session.",
     accentSection: "algorithms",
-    path: `generated/${slug}`,
+    path: `${CUSTOM_SIMULATIONS_SECTION}/${slug}`,
     children: [],
     references: [],
   }));
@@ -111,16 +120,16 @@ function createGeneratedTree(generatedConcepts: GeneratedConcept[]): ConceptNode
   return [
     ...staticConceptTree,
     {
-      id: "generated",
-      title: "Generated",
-      section: "generated",
+      id: CUSTOM_SIMULATIONS_SECTION,
+      title: CUSTOM_SIMULATIONS_LABEL,
+      section: CUSTOM_SIMULATIONS_SECTION,
       order: Number.MAX_SAFE_INTEGER,
       difficulty: "beginner",
       tags: [],
       prerequisites: [],
-      summary: "Concepts generated during this session.",
+      summary: "Interactive simulations created in this browser session.",
       accentSection: "algorithms",
-      path: "generated",
+      path: CUSTOM_SIMULATIONS_SECTION,
       children,
       references: [],
     },
@@ -131,6 +140,7 @@ export function GeneratedConceptsProvider({ children }: { children: ReactNode })
   const [generatedConcepts, setGeneratedConcepts] = useState<GeneratedConcept[]>(
     readStoredConcepts,
   );
+  const hasSeededDemoFixtures = useRef(false);
 
   const addGeneratedConcept = useCallback((spec: SimulationSpec) => {
     const baseSlug = toSlug(spec.title);
@@ -160,6 +170,16 @@ export function GeneratedConceptsProvider({ children }: { children: ReactNode })
     return generatedConcept;
   }, [generatedConcepts]);
 
+  useEffect(() => {
+    if (hasSeededDemoFixtures.current) return;
+
+    hasSeededDemoFixtures.current = true;
+
+    if (readStoredConcepts().length > 0) return;
+
+    DEMO_FIXTURES.forEach((fixture) => addGeneratedConcept(fixture));
+  }, []);
+
   const conceptTree = useMemo(
     () => createGeneratedTree(generatedConcepts),
     [generatedConcepts],
@@ -171,7 +191,7 @@ export function GeneratedConceptsProvider({ children }: { children: ReactNode })
         (generatedConcept) => generatedConcept.slug === slug,
       );
 
-      if (!existing) return undefined;
+      if (!existing) return;
 
       try {
         window.sessionStorage.setItem(
@@ -182,13 +202,11 @@ export function GeneratedConceptsProvider({ children }: { children: ReactNode })
         // Keep the replacement available in memory if browser storage is unavailable.
       }
 
-      const generatedConcept = { slug, spec };
       setGeneratedConcepts((concepts) =>
         concepts.map((concept) =>
-          concept.slug === slug ? generatedConcept : concept,
+          concept.slug === slug ? { slug, spec } : concept,
         ),
       );
-      return generatedConcept;
     },
     [generatedConcepts],
   );

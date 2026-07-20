@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { generateObject } from "ai";
+import { generateText } from "ai";
 import { getProvider } from "../src/lib/aiProvider";
+import { extractJson, normalizeRawSpec } from "../src/lib/llmUtils";
 import {
   SimulationSpecSchema,
   type SimulationSpec,
@@ -12,98 +13,93 @@ type GraphSimulationSpec = Extract<SimulationSpec, { visualType: "graph" }>;
 type ModificationRequestBody = {
   currentSpec?: unknown;
   modificationRequest?: unknown;
-  context?: unknown;
 };
 
-function variationTitle(title: string, suffix: string) {
-  return `${title} — ${suffix}`;
+function readHeader(request: VercelRequest, name: string) {
+  const header = Object.entries(request.headers).find(
+    ([key]) => key.toLowerCase() === name,
+  )?.[1];
+  const value = Array.isArray(header) ? header[0] : header;
+  const trimmed = value?.trim();
+
+  return trimmed || undefined;
 }
 
-function deriveBubbleSortSteps(values: number[]): ArraySimulationSpec["steps"] {
-  const working = [...values];
-  const steps: ArraySimulationSpec["steps"] = [];
-
-  for (let end = working.length - 1; end > 0; end -= 1) {
-    for (let index = 0; index < end; index += 1) {
-      steps.push({ type: "COMPARE", indices: [index, index + 1] });
-
-      if (working[index] > working[index + 1]) {
-        steps.push({ type: "SWAP", indices: [index, index + 1] });
-        [working[index], working[index + 1]] = [
-          working[index + 1],
-          working[index],
-        ];
-      }
-    }
-  }
-
-  return steps;
+function getRequestProviderOptions(request: VercelRequest) {
+  return {
+    apiKey: readHeader(request, "x-api-key"),
+    baseUrl: readHeader(request, "x-base-url"),
+    model: readHeader(request, "x-model"),
+  };
 }
 
-function makeArrayLarger(spec: ArraySimulationSpec): ArraySimulationSpec {
-  const maxValue = Math.max(0, ...spec.initialState.map(Math.abs));
-  const initialState = [
-    ...spec.initialState,
-    ...spec.initialState.map((value, index) => maxValue + value + index + 1),
-  ];
+function addDeterministicArrayValues(
+  spec: ArraySimulationSpec,
+): ArraySimulationSpec {
+  const length = spec.initialState.length;
+  const maximum = Math.max(0, ...spec.initialState.map((value) => Math.abs(value)));
+  const firstValue = maximum + length + 1;
+  const secondValue = firstValue + Math.max(1, length);
+  const initialState = [...spec.initialState, firstValue, secondValue];
 
   return {
     ...spec,
-    title: variationTitle(spec.title, "larger input"),
     initialState,
-    steps: deriveBubbleSortSteps(initialState),
+    steps: [
+      ...spec.steps,
+      {
+        type: "HIGHLIGHT",
+        indices: [length],
+        description: `Added value ${firstValue}.`,
+      },
+      {
+        type: "HIGHLIGHT",
+        indices: [length + 1],
+        description: `Added value ${secondValue}.`,
+      },
+    ],
   };
 }
 
-function addGraphNode(spec: GraphSimulationSpec): GraphSimulationSpec {
-  const existingIds = new Set(spec.initialState.nodes.map((node) => node.id));
-  let suffix = spec.initialState.nodes.length + 1;
-  let id = `node-${suffix}`;
+function readRequestedNodeCount(request: string) {
+  const match = request.match(/\b(\d+)\s+nodes?\b/i);
+  const count = match ? Number.parseInt(match[1], 10) : undefined;
 
-  while (existingIds.has(id)) {
+  return count && count > 0 ? count : undefined;
+}
+
+function addGraphNodes(
+  spec: GraphSimulationSpec,
+  requestedCount: number | undefined,
+): GraphSimulationSpec {
+  const nodes = [...spec.initialState.nodes];
+  const edges = [...spec.initialState.edges];
+  const existingIds = new Set(nodes.map((node) => node.id));
+  const target = Math.max(nodes.length + 1, requestedCount ?? 0);
+  let suffix = nodes.length + 1;
+
+  while (nodes.length < target) {
+    let id = `node-${suffix}`;
+
+    while (existingIds.has(id)) {
+      suffix += 1;
+      id = `node-${suffix}`;
+    }
+
+    const previous = nodes.at(-1);
+    nodes.push({ id, label: `Node ${suffix}` });
+    existingIds.add(id);
+
+    if (previous) {
+      edges.push({ from: previous.id, to: id });
+    }
+
     suffix += 1;
-    id = `node-${suffix}`;
   }
 
-  const parent = spec.initialState.nodes.at(-1)?.id;
-  const node = { id, label: `Node ${suffix}` };
-  const edges = parent
-    ? [...spec.initialState.edges, { from: parent, to: id }]
-    : spec.initialState.edges;
-  const steps = parent
-    ? [
-        ...spec.steps,
-        { type: "TRAVERSE_EDGE" as const, from: parent, to: id },
-        { type: "VISIT_NODE" as const, id },
-      ]
-    : [...spec.steps, { type: "VISIT_NODE" as const, id }];
-
   return {
     ...spec,
-    title: variationTitle(spec.title, "expanded graph"),
-    initialState: {
-      nodes: [...spec.initialState.nodes, node],
-      edges,
-    },
-    steps,
-  };
-}
-
-function reverseGraph(spec: GraphSimulationSpec): GraphSimulationSpec {
-  return {
-    ...spec,
-    title: variationTitle(spec.title, "reversed traversal"),
-    initialState: {
-      nodes: [...spec.initialState.nodes].reverse(),
-      edges: spec.initialState.edges
-        .map(({ from, to }) => ({ from: to, to: from }))
-        .reverse(),
-    },
-    steps: spec.steps.map((step) =>
-      step.type === "TRAVERSE_EDGE"
-        ? { ...step, from: step.to, to: step.from }
-        : step,
-    ),
+    initialState: { nodes, edges },
   };
 }
 
@@ -112,17 +108,11 @@ function createFixtureVariation(
   modificationRequest: string,
 ): SimulationSpec {
   const request = modificationRequest.toLowerCase();
-  const wantsReverse = /\brevers(e|ed|ing)?\b/.test(request);
 
-  if (spec.visualType === "array") {
-    if (/\b(bigger|larger|more values?|expand)\b/.test(request)) {
-      return makeArrayLarger(spec);
-    }
-
-    if (wantsReverse) {
+  if (/\brevers(e|ed|ing)?\b/.test(request)) {
+    if (spec.visualType === "array") {
       return {
         ...spec,
-        title: variationTitle(spec.title, "reversed input"),
         initialState: [...spec.initialState].reverse(),
         steps: [...spec.steps].reverse(),
       };
@@ -130,40 +120,33 @@ function createFixtureVariation(
 
     return {
       ...spec,
-      title: variationTitle(spec.title, "highlighted pass"),
-      steps: [
-        ...spec.steps,
-        {
-          type: "HIGHLIGHT",
-          indices: spec.initialState.map((_, index) => index),
-        },
-      ],
+      initialState: {
+        nodes: [...spec.initialState.nodes].reverse(),
+        edges: [...spec.initialState.edges],
+      },
+      steps: [...spec.steps].reverse(),
     };
   }
 
-  if (/\b(more nodes?|add node|expand)\b/.test(request)) {
-    return addGraphNode(spec);
+  const requestedNodeCount = readRequestedNodeCount(request);
+  const wantsMore = /\b(more|bigger)\b/.test(request);
+
+  if (spec.visualType === "array" && wantsMore) {
+    return addDeterministicArrayValues(spec);
   }
 
-  if (wantsReverse) {
-    return reverseGraph(spec);
+  if (spec.visualType === "graph" && (wantsMore || requestedNodeCount)) {
+    return addGraphNodes(spec, requestedNodeCount);
   }
 
   return {
     ...spec,
-    title: variationTitle(spec.title, "highlighted traversal"),
-    steps: [
-      ...spec.steps,
-      { type: "HIGHLIGHT", ids: spec.initialState.nodes.map((node) => node.id) },
-    ],
+    title: `${spec.title} (modified)`,
   };
 }
 
-function buildModificationInstructions(visualType: SimulationSpec["visualType"]) {
-  return `Modify the supplied computer-science simulation specification in place.
-
-Keep visualType exactly "${visualType}". Return a complete schema-valid SimulationSpec using only the operations supported by that visual type. Keep array indices and graph node IDs valid, preserve concise C-style pseudocode, and update complexity or pitfalls only when the requested variation changes them.`;
-}
+const modificationSystemPrompt =
+  "You are modifying an existing CS simulation. Keep the same visualType. Apply the user's modification request to the spec. Return ONLY valid JSON matching the schema.";
 
 export default async function handler(
   request: VercelRequest,
@@ -189,7 +172,10 @@ export default async function handler(
     return response.status(400).json({ error: "A valid current simulation is required" });
   }
 
-  if (process.env.USE_FIXTURES === "true") {
+  const providerOptions = getRequestProviderOptions(request);
+  const hasApiKey = Boolean(providerOptions.apiKey || process.env.AI_API_KEY);
+
+  if (!hasApiKey && process.env.USE_FIXTURES !== "false") {
     return response
       .status(200)
       .json(createFixtureVariation(currentSpec.data, modificationRequest));
@@ -198,30 +184,35 @@ export default async function handler(
   let provider;
 
   try {
-    provider = getProvider();
+    provider = getProvider(providerOptions);
   } catch {
-    return response
-      .status(503)
-      .json({ error: "AI provider is not configured" });
+    return response.status(503).json({ error: "AI provider is not configured" });
   }
 
   try {
-    const { object } = await generateObject({
+    const { text } = await generateText({
       model: provider.provider.chatModel(provider.modelId),
-      schema: SimulationSpecSchema,
-      schemaName: "simulation_spec",
-      system: buildModificationInstructions(currentSpec.data.visualType),
-      prompt: `Current specification:\n${JSON.stringify(currentSpec.data)}\n\nRequested modification:\n${modificationRequest}`,
+      system: modificationSystemPrompt,
+      prompt: `Current SimulationSpec:\n${JSON.stringify(currentSpec.data)}\n\nModification request:\n${modificationRequest}`,
     });
-    const modifiedSpec = SimulationSpecSchema.parse(object);
+    const modifiedSpec = SimulationSpecSchema.safeParse(
+      normalizeRawSpec(extractJson(text), currentSpec.data.title),
+    );
 
-    if (modifiedSpec.visualType !== currentSpec.data.visualType) {
+    if (!modifiedSpec.success) {
+      return response.status(502).json({
+        error:
+          "The AI returned an invalid variation. Try a more specific modification request.",
+      });
+    }
+
+    if (modifiedSpec.data.visualType !== currentSpec.data.visualType) {
       return response.status(422).json({
         error: "The generated variation changed the simulation type",
       });
     }
 
-    return response.status(200).json(modifiedSpec);
+    return response.status(200).json(modifiedSpec.data);
   } catch (error) {
     console.error("Simulation modification failed", error);
     return response

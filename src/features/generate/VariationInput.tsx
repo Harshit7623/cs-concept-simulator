@@ -1,17 +1,15 @@
 import { LoaderCircle, WandSparkles } from "lucide-react";
 import { type FormEvent, useState } from "react";
 import type { SimulationSpec } from "../../lib/simulationSpec";
-import { SimulationSpecSchema } from "../../lib/simulationSpec";
 import { useGeneratedConcepts } from "./GeneratedConceptsContext";
+import { modifyGeneratedSimulation } from "./modifyGeneratedSimulation";
 
 export function VariationInput({
   slug,
-  spec,
-  currentStep,
+  currentSpec,
 }: {
   slug: string;
-  spec: SimulationSpec;
-  currentStep: number;
+  currentSpec: SimulationSpec;
 }) {
   const { replaceGeneratedConcept } = useGeneratedConcepts();
   const [request, setRequest] = useState("");
@@ -28,37 +26,11 @@ export function VariationInput({
     setIsSubmitting(true);
 
     try {
-      const response = await fetch("/api/modify-simulation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          currentSpec: spec,
-          modificationRequest,
-          context: { conceptId: slug, currentStep },
-        }),
-      });
-      const body: unknown = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        const message =
-          body &&
-          typeof body === "object" &&
-          "error" in body &&
-          typeof body.error === "string"
-            ? body.error
-            : "Unable to modify this simulation.";
-        throw new Error(message);
-      }
-
-      const parsed = SimulationSpecSchema.safeParse(body);
-
-      if (!parsed.success || parsed.data.visualType !== spec.visualType) {
-        throw new Error("The variation did not match this simulation type.");
-      }
-
-      if (!replaceGeneratedConcept(slug, parsed.data)) {
-        throw new Error("This generated concept is no longer available.");
-      }
+      const newSpec = await modifyGeneratedSimulation(
+        currentSpec,
+        modificationRequest,
+      );
+      replaceGeneratedConcept(slug, newSpec);
 
       setRequest("");
     } catch (caughtError) {
