@@ -115,6 +115,8 @@ function createGeneratedTree(generatedConcepts: GeneratedConcept[]): ConceptNode
     path: `${CUSTOM_SIMULATIONS_SECTION}/${slug}`,
     children: [],
     references: [],
+    hasCodeTrace: false,
+    codeTrace: null,
   }));
 
   return [
@@ -132,6 +134,8 @@ function createGeneratedTree(generatedConcepts: GeneratedConcept[]): ConceptNode
       path: CUSTOM_SIMULATIONS_SECTION,
       children,
       references: [],
+      hasCodeTrace: false,
+      codeTrace: null,
     },
   ];
 }

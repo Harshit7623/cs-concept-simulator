@@ -1,16 +1,10 @@
 import {
-  Box,
   ChevronDown,
   ChevronRight,
   FileCode2,
   Folder,
-  Network,
   PanelLeftClose,
   PanelLeftOpen,
-  Sparkles,
-  Terminal,
-  Workflow,
-  Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
@@ -29,19 +23,6 @@ type SidebarProps = {
   variant?: SidebarVariant;
   onNavigate?: () => void;
 };
-
-const sectionItems = [
-  { key: "algorithms", label: sectionLabels.algorithms, icon: Workflow },
-  { key: "os", label: sectionLabels.os, icon: Box },
-  { key: "networking", label: sectionLabels.networking, icon: Network },
-  { key: "systems", label: sectionLabels.systems, icon: Terminal },
-  { key: "languages", label: sectionLabels.languages, icon: Zap },
-  {
-    key: CUSTOM_SIMULATIONS_SECTION,
-    label: CUSTOM_SIMULATIONS_LABEL,
-    icon: Sparkles,
-  },
-] as const;
 
 function getContentPath(pathname: string) {
   return pathname.replace(/^\/workspace\/?/, "").replace(/\/$/, "");
@@ -104,18 +85,25 @@ function ConceptNodeLink({
         ) : (
           <span className="w-5" aria-hidden="true" />
         )}
-        <Link
-          to={`/workspace/${node.path}`}
-          onClick={onNavigate}
-          className={`flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-3 text-xs ${
-            isActive
-              ? `font-semibold ${accentClass(node.section)}`
-              : "text-muted hover:text-foreground"
-          }`}
-        >
-          {hasChildren ? <Folder size={14} /> : <FileCode2 size={14} />}
-          <span className="truncate">{node.title}</span>
-        </Link>
+        {node.isCategory ? (
+          <span className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-3 text-xs font-medium text-foreground">
+            <Folder size={14} aria-hidden="true" />
+            <span className="truncate">{node.title}</span>
+          </span>
+        ) : (
+          <Link
+            to={`/workspace/${node.path}`}
+            onClick={onNavigate}
+            className={`flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-3 text-xs ${
+              isActive
+                ? `font-semibold ${accentClass(node.section)}`
+                : "text-muted hover:text-foreground"
+            }`}
+          >
+            <FileCode2 size={14} />
+            <span className="truncate">{node.title}</span>
+          </Link>
+        )}
       </div>
       {hasChildren && open
         ? node.children.map((child) => (
@@ -138,21 +126,17 @@ export function Sidebar({ variant = "desktop", onNavigate }: SidebarProps) {
   const location = useLocation();
   const contentPath = getContentPath(location.pathname);
   const activeSection = contentPath.split("/")[0];
-  const [openSections, setOpenSections] = useState<Set<string>>(
-    () => new Set(activeSection ? [activeSection] : []),
-  );
+  const sectionRoot = conceptTree.find((node) => node.path === activeSection);
+  const sectionLabel =
+    sectionRoot?.title ??
+    sectionLabels[activeSection] ??
+    (activeSection === CUSTOM_SIMULATIONS_SECTION
+      ? CUSTOM_SIMULATIONS_LABEL
+      : undefined);
 
-  useEffect(() => {
-    if (!activeSection) return;
-
-    setOpenSections((sections) => {
-      if (sections.has(activeSection)) return sections;
-
-      const nextSections = new Set(sections);
-      nextSections.add(activeSection);
-      return nextSections;
-    });
-  }, [activeSection]);
+  // The library is intentionally contextual: at the workspace overview there
+  // is no active section, so navigation stays out of the way.
+  if (!sectionRoot || !sectionLabel) return null;
 
   if (variant === "desktop" && hidden) {
     return (
@@ -181,11 +165,11 @@ export function Sidebar({ variant = "desktop", onNavigate }: SidebarProps) {
       {variant === "desktop" ? (
         <div className="flex items-center justify-between px-4 pb-3">
           <Link
-            to="/workspace"
+            to={`/workspace/${activeSection}`}
             onClick={onNavigate}
             className="font-mono text-[10px] uppercase tracking-[.2em] text-muted transition hover:text-foreground"
           >
-            Library
+            {sectionLabel}
           </Link>
           <button
             type="button"
@@ -199,78 +183,20 @@ export function Sidebar({ variant = "desktop", onNavigate }: SidebarProps) {
         </div>
       ) : null}
 
-      <nav aria-label="Concept library" className="space-y-1 px-2">
-        {sectionItems.map(({ key, label, icon: Icon }) => {
-          const sectionRoots = conceptTree.filter((node) => node.section === key);
-          const sectionNodes = sectionRoots.flatMap((node) =>
-            node.path === key ? node.children : [node],
-          );
-          const count = sectionRoots.reduce(
-            (total, node) => total + countLeafConcepts(node),
-            0,
-          );
-          const open = openSections.has(key);
-          const isActiveSection = activeSection === key;
-          const isEmpty = count === 0;
-
-          return (
-            <div key={key} className={isEmpty ? "opacity-70" : undefined}>
-              <div
-                className={`flex items-center gap-1 rounded-lg ${
-                  isActiveSection ? "bg-surface-hover" : ""
-                }`}
-              >
-                <button
-                  type="button"
-                  aria-label={`Toggle ${label}`}
-                  aria-expanded={open}
-                  onClick={() =>
-                    setOpenSections((sections) => {
-                      const nextSections = new Set(sections);
-
-                      if (nextSections.has(key)) {
-                        nextSections.delete(key);
-                      } else {
-                        nextSections.add(key);
-                      }
-
-                      return nextSections;
-                    })
-                  }
-                  className="rounded p-1.5 text-muted transition hover:bg-surface-hover hover:text-foreground"
-                >
-                  {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                </button>
-                <Link
-                  to={`/workspace/${key}`}
-                  onClick={onNavigate}
-                  className={`flex min-w-0 flex-1 items-center gap-2 py-2 text-xs font-medium ${
-                    isActiveSection
-                      ? accentClass(key)
-                      : "text-foreground hover:text-muted"
-                  }`}
-                >
-                  <Icon size={14} aria-hidden="true" />
-                  <span className="truncate">{label}</span>
-                  <span className="ml-auto rounded-full bg-background px-1.5 py-0.5 font-mono text-[10px] text-muted">
-                    {count}
-                  </span>
-                </Link>
-              </div>
-              {open
-                ? sectionNodes.map((child) => (
-                    <ConceptNodeLink
-                      key={child.path}
-                      node={child}
-                      depth={0}
-                      contentPath={contentPath}
-                      onNavigate={onNavigate}
-                    />
-                  ))
-                : null}
-            </div>
-          );
-        })}
+      <nav aria-label={`${sectionLabel} concepts`} className="space-y-1 px-2">
+        <div className="px-2 pb-2 font-mono text-[10px] uppercase tracking-[.16em] text-muted">
+          {countLeafConcepts(sectionRoot)} concept
+          {countLeafConcepts(sectionRoot) === 1 ? "" : "s"}
+        </div>
+        {sectionRoot.children.map((child) => (
+          <ConceptNodeLink
+            key={child.path}
+            node={child}
+            depth={0}
+            contentPath={contentPath}
+            onNavigate={onNavigate}
+          />
+        ))}
       </nav>
     </aside>
   );

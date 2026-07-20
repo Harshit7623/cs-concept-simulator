@@ -18,10 +18,30 @@ export type Reference = {
   url: string;
   verified: boolean;
 };
+export type CodeTraceStep = {
+  line: number;
+  variables: Record<string, unknown>;
+  callStack: string[];
+  stdout: string;
+};
+export type CodeTrace = {
+  language: "c" | "cpp" | "go" | "java" | "javascript" | "python" | "pseudocode";
+  sourceCode: string;
+  steps: CodeTraceStep[];
+  stepMap: Array<number | [number, number]>;
+};
+export type TraceableSimulationProps = {
+  /** Lets ConceptWorkbench own the shared state for a traced concept. */
+  externalStep?: number;
+};
 export type ConceptNode = Meta & {
   path: string;
   children: ConceptNode[];
-  simulation?: () => Promise<{ default: React.ComponentType }>;
+  /** A navigation-only grouping created from a concept's parentPath. */
+  isCategory?: boolean;
+  hasCodeTrace: boolean;
+  codeTrace: CodeTrace | null;
+  simulation?: () => Promise<{ default: React.ComponentType<TraceableSimulationProps> }>;
   logic?: () => Promise<{ default: React.ComponentType }>;
   references: Reference[];
 };

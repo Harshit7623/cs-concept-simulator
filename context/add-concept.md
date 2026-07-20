@@ -36,15 +36,16 @@ The nested example has content path: algorithms/sorting/quick-sort.
 | Simulation.tsx | Yes | Standalone interactive visual. |
 | logic.mdx | Yes | Explanation, C-style pseudocode, complexity, and pitfalls. |
 | references.json | Yes | Curated references; an empty array is allowed. |
-| trace.json | Later | Optional static execution trace for the future split code/simulation view. |
+| trace.json | Optional | Static code-execution trace for the synchronized workbench. |
 
-The current loader recognises these four required patterns:
+The current loader recognises these required and optional patterns:
 
 ~~~text
 /src/content/**/meta.json
 /src/content/**/Simulation.tsx
 /src/content/**/logic.mdx
 /src/content/**/references.json
+/src/content/**/trace.json
 ~~~
 
 ## 1. meta.json
@@ -239,9 +240,9 @@ paper | video | doc | tool | book | article
 
 Use valid absolute URLs. Set verified to true only after manually checking the source.
 
-## Optional future trace.json
+## Optional trace.json workbench
 
-Do not add trace.json for ordinary concepts yet. It is reserved for the future synchronized simulation and C-code trace workbench.
+Add trace.json only when the concept needs synchronized code and visual execution. Its presence automatically enables the workbench on the Simulation tab; it never runs code in the browser or on a server.
 
 When implemented, place it beside the four required files:
 
@@ -249,12 +250,35 @@ When implemented, place it beside the four required files:
 src/content/algorithms/sorting/quick-sort/trace.json
 ~~~
 
-It contains static, precomputed execution data only. It must never trigger live production code execution.
+Use this shape:
+
+~~~json
+{
+  "language": "c",
+  "sourceCode": "void example() {\\n  return;\\n}",
+  "steps": [
+    {
+      "line": 1,
+      "variables": { "value": 4 },
+      "callStack": ["example()"],
+      "stdout": ""
+    }
+  ],
+  "stepMap": [0]
+}
+~~~
+
+- line is one-indexed against sourceCode.
+- variables must be a flat JSON object; values are displayed, never interpreted.
+- stepMap maps each abstract visual step to a trace step. It may also use a range, for example [2, 4], when one visual beat covers several code steps.
+- Update Simulation.tsx to accept optional externalStep?: number. When it is supplied, render that step and omit local SimulationControls; the workbench provides the one shared control bar.
+- The data must be precomputed and static. Never execute source code in production.
 
 ## Final checklist
 
 - Folder and id match and use kebab-case.
 - All four required files are in the same folder.
+- If trace.json is present, its line numbers, stepMap, and Simulation externalStep behavior agree.
 - section and accentSection are valid section keys.
 - parentPath matches the parent folders.
 - order is correct among siblings.

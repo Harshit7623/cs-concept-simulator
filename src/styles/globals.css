@@ -46,9 +46,52 @@ input:focus-visible {
 .code-function { color: var(--code-function); }
 .code-variable { color: var(--code-variable); }
 .code-number { color: var(--code-number); }
+.code-comment { color: var(--foreground-muted); }
 .complexity-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 .complexity-grid > div { display: flex; flex-direction: column; gap: 0.35rem; }
 .complexity-value { font-family: var(--font-mono); font-size: 1.1rem; }
+
+.trace-workbench { margin-top: 1.25rem; }
+.trace-panel-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.trace-panel-header h2 { margin: 0.25rem 0 0; font-size: 1rem; line-height: 1.35; }
+.trace-eyebrow { margin: 0; color: var(--accent-algorithms); font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.16em; text-transform: uppercase; }
+.trace-step-indicator,
+.trace-language { flex: none; border: 1px solid var(--border); border-radius: 999px; background: var(--background); padding: 0.3rem 0.55rem; color: var(--foreground-muted); font-family: var(--font-mono); font-size: 0.68rem; }
+.trace-panel-meta { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.4rem; }
+.trace-workbench-grid { display: grid; grid-template-columns: minmax(31rem, 1.15fr) minmax(25rem, 0.85fr); overflow: hidden; border: 1px solid var(--border); border-radius: 1rem; background: var(--background); }
+.trace-visual-panel { order: 2; min-width: 0; padding: 1rem; border-left: 1px solid var(--border); }
+.trace-visual-panel > .trace-eyebrow { margin-bottom: 0.75rem; }
+.trace-panel { order: 1; min-width: 0; background: var(--background); }
+.trace-panel-header { padding: 1rem 1rem 0.8rem; border-bottom: 1px solid var(--border); }
+.trace-code { max-height: 21rem; overflow: auto; padding: 0.7rem 0; background: var(--code-surface); color: var(--code-foreground); font-family: var(--font-mono); font-size: 0.73rem; line-height: 1.7; }
+.trace-code-line { display: grid; grid-template-columns: 2.7rem minmax(max-content, 1fr); min-width: max-content; border-left: 2px solid transparent; padding-right: 1rem; transition: background 0.16s ease, border-color 0.16s ease; }
+.trace-code-line.is-active { border-left-color: var(--accent-algorithms); background: color-mix(in oklab, var(--accent-algorithms) 18%, transparent); }
+.trace-line-number { padding-right: 0.75rem; color: var(--foreground-muted); text-align: right; user-select: none; }
+.trace-code-line code { white-space: pre; }
+.trace-inspector { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--border); }
+.trace-inspector-section { min-width: 0; padding: 0.85rem 1rem; }
+.trace-inspector-section + .trace-inspector-section { border-left: 1px solid var(--border); }
+.trace-inspector-section h3 { margin: 0 0 0.55rem; color: var(--foreground-muted); font-family: var(--font-mono); font-size: 0.62rem; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; }
+.trace-variables { margin: 0; }
+.trace-variables > div { display: grid; grid-template-columns: minmax(0, 0.72fr) minmax(0, 1.28fr); gap: 0.5rem; padding: 0.22rem 0; font-family: var(--font-mono); font-size: 0.7rem; }
+.trace-variables dt { color: var(--code-variable); }
+.trace-variables dd { overflow: hidden; margin: 0; color: var(--foreground-muted); text-overflow: ellipsis; white-space: nowrap; }
+.trace-call-stack { display: grid; gap: 0.35rem; margin: 0; padding: 0; list-style: none; }
+.trace-call-stack li { display: flex; min-width: 0; align-items: center; gap: 0.45rem; color: var(--foreground-muted); font-family: var(--font-mono); font-size: 0.7rem; }
+.trace-call-stack li > span { display: grid; width: 1rem; height: 1rem; flex: none; place-items: center; border: 1px solid var(--border); border-radius: 50%; color: var(--foreground); font-size: 0.58rem; }
+.trace-call-stack code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trace-stdout { grid-column: 1 / -1; border-top: 1px solid var(--border); }
+.trace-stdout pre { overflow-x: auto; margin: 0; color: var(--code-variable); font-family: var(--font-mono); font-size: 0.7rem; white-space: pre-wrap; }
+
+@media (max-width: 900px) {
+  .trace-workbench-grid { grid-template-columns: 1fr; }
+  .trace-visual-panel { border-top: 1px solid var(--border); border-left: 0; }
+}
+
+@media (max-width: 540px) {
+  .trace-inspector { grid-template-columns: 1fr; }
+  .trace-inspector-section + .trace-inspector-section { border-top: 1px solid var(--border); border-left: 0; }
+}
 
 @keyframes dash {
   to { stroke-dashoffset: -40; }

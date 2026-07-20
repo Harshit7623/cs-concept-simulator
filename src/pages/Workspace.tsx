@@ -47,6 +47,7 @@ import type { SimulationSpec } from "../lib/simulationSpec";
 import { isLiveMode } from "../lib/apiClient";
 import { GeneratedConceptLogic } from "../features/generate/GeneratedConceptLogic";
 import { modifyGeneratedSimulation } from "../features/generate/modifyGeneratedSimulation";
+import { ConceptWorkbench } from "../features/code-trace/ConceptWorkbench";
 
 const sectionVisuals = {
   algorithms: { icon: Workflow, accent: "text-accent-algorithms" },
@@ -541,6 +542,9 @@ export default function Workspace() {
   const Simulation = concept?.simulation ? lazy(concept.simulation) : null;
   const Logic = concept?.logic ? lazy(concept.logic) : null;
   const tab = new URLSearchParams(loc.search).get("tab") ?? "simulation";
+  const usesFullTraceLayout = Boolean(
+    concept?.hasCodeTrace && concept.codeTrace && tab === "simulation",
+  );
   const contentKey = `${loc.pathname}${loc.search}`;
   const isSectionRoute = trail.length === 1 && Boolean(sectionLabels[trail[0]]);
   const isCustomSectionRoute =
@@ -631,7 +635,13 @@ export default function Workspace() {
               exit={shouldReduceMotion ? undefined : { opacity: 0, y: -4 }}
               transition={{ duration: shouldReduceMotion ? 0 : 0.18, ease: "easeOut" }}
             >
-              <div className="mx-auto max-w-4xl px-5 py-8 sm:px-8">
+              <div
+                className={
+                  usesFullTraceLayout
+                    ? "w-full px-5 py-8 sm:px-8 xl:px-10"
+                    : "mx-auto max-w-4xl px-5 py-8 sm:px-8"
+                }
+              >
                 {generatedConcept ? (
               <GeneratedConceptContent
                 slug={generatedConcept.slug}
@@ -681,7 +691,14 @@ export default function Workspace() {
                   >
                     {Simulation && (
                       <SimulationErrorBoundary resetKey={path}>
-                        <Simulation />
+                        {concept.hasCodeTrace && concept.codeTrace ? (
+                          <ConceptWorkbench
+                            Simulation={Simulation}
+                            trace={concept.codeTrace}
+                          />
+                        ) : (
+                          <Simulation />
+                        )}
                       </SimulationErrorBoundary>
                     )}
                   </Suspense>
