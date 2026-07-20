@@ -28,7 +28,7 @@
     { "type": "VISIT_NODE", "id": "e" },
     { "type": "HIGHLIGHT", "ids": ["a", "b", "d", "e"] }
   ],
-  "pseudocode": "void dfs(Node node) {\n  markVisited(node);\n  forEachNeighbor(node) {\n    if (!isVisited(node)) {\n      dfs(node);\n    }\n  }\n}",
+  "pseudocode": "void dfs(Node node) {\n  markVisited(node);\n  forEachNeighbor(node) {\n    if (!isVisited(neighbor)) {\n      dfs(neighbor);\n    }\n  }\n}",
   "complexity": {
     "time": "O(V + E)",
     "space": "O(V)"
