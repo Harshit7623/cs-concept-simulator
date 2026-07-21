@@ -1,8 +1,20 @@
 # Trace Kernel
 
-> An AI-powered learning platform that turns computer science concepts into interactive, step-by-step visual simulations — with an agentic Concept Copilot that can explain, navigate, and modify simulations in real time.
+<p align="center">
+  <img src="public/trace-kernel-mark.svg" alt="Trace Kernel mark" width="72" />
+</p>
 
-![Trace Kernel Workspace](public/docs/workspace-overview.png)
+<p align="center">
+  An AI-powered learning platform that turns computer science concepts into interactive, step-by-step visual simulations — with an agentic Concept Copilot that can explain, navigate, and modify simulations in real time.
+</p>
+
+<p align="center">
+  <a href="#local-development">Run locally</a> ·
+  <a href="#features">Explore features</a> ·
+  <a href="#architecture">View architecture</a>
+</p>
+
+![Trace Kernel workspace overview](public/docs/workspace-overview.png)
 
 ---
 
@@ -15,6 +27,8 @@ Trace Kernel transforms how students learn algorithms and data structures. Inste
 - **Ask the Concept Copilot** — a context-aware AI assistant grounded in the current simulation state. It can explain the current step, compare trade-offs, and even navigate the simulation programmatically using tool calls.
 - **Modify simulations in-place** — say "reverse the input" or "add 3 more nodes" and the AI rewrites the simulation while preserving chat history.
 
+The result is a single workspace where the visualization, explanation, code trace, references, and AI guidance stay connected.
+
 ---
 
 ## Features
@@ -22,12 +36,12 @@ Trace Kernel transforms how students learn algorithms and data structures. Inste
 ### Curated Concept Library
 File-driven content system with metadata, simulation specs, logic explanations, and references. Organized into sections: Algorithms, Operating Systems, Networking, Systems, Languages.
 
-![Simulation Detail View](public/docs/simulation-detail.png)
+![Trace Kernel simulation detail](public/docs/simulation-detail.png)
 
 ### AI-Powered Simulation Generation
 Type any CS concept and get a complete interactive simulation with pseudocode, complexity analysis, and common pitfalls. Works with any OpenAI-compatible LLM (Groq, NVIDIA NIM, Ollama, OpenRouter).
 
-![AI Simulation Generation](public/docs/ai-simulation-generation.gif)
+![AI simulation generation](public/docs/ai-simulation-generation.gif)
 
 ### Agentic Concept Copilot
 Context-aware chat assistant with tool-calling capabilities:
@@ -35,12 +49,12 @@ Context-aware chat assistant with tool-calling capabilities:
 - **`setSimulationStep`** — navigates the visualizer to any step when the user asks "show me step 3"
 - **`modifySimulation`** — rewrites the simulation in-place when the user asks "reverse the input" or "add more nodes"
 
-![AI Copilot Chat](public/docs/ai-copilot.png)
+![Trace Kernel AI copilot](public/docs/ai-copilot.png)
 
 ### In-Place Variation Generator
 Modify generated simulations without losing context. Available through both the dedicated Variation Input UI and the Copilot's tool-calling interface.
 
-![Variation Generator](public/docs/variation-generator.png)
+![Trace Kernel variation generator](public/docs/variation-generator.png)
 
 ### Command Palette
 Cmd+K / Ctrl+K fuzzy search across all concepts, tags, and topics.
@@ -67,42 +81,15 @@ Dark/light mode toggle, `prefers-reduced-motion` support, semantic color tokens,
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────┐
-│  Vite SPA (React + TypeScript + Tailwind)       │
-│  ┌───────────┐ ┌───────────┐ ┌───────────────┐  │
-│  │ Workspace │ │ ChatPanel │ │ GenerateInput │  │
-│  │           │ │ (Copilot) │ │ + Variation   │  │
-│  └─────┬─────┘ └─────┬─────┘ └──────┬────────┘  │
-│        │              │              │           │
-│  ┌─────▼──────────────▼──────────────▼────────┐  │
-│  │  apiClient.ts  (BYO-key headers from       │  │
-│  │                 localStorage settings)      │  │
-│  └─────────────────────┬──────────────────────┘  │
-└────────────────────────┼─────────────────────────┘
-                         │  HTTP
-┌────────────────────────▼─────────────────────────┐
-│  Vercel Serverless Functions                      │
-│  ┌──────────────┐ ┌────────┐ ┌────────────────┐  │
-│  │ generate-    │ │ chat   │ │ modify-        │  │
-│  │ simulation   │ │ (stream│ │ simulation     │  │
-│  │ (generateText│ │  +tools│ │ (generateText  │  │
-│  │  +normalize) │ │  )     │ │  +normalize)   │  │
-│  └──────┬───────┘ └───┬────┘ └───────┬────────┘  │
-│         └─────────────┼──────────────┘           │
-│                       │                          │
-│  ┌────────────────────▼──────────────────────┐   │
-│  │  aiProvider.ts  (OpenAI-compatible factory)│   │
-│  │  headers → env vars → defaults             │   │
-│  └────────────────────┬──────────────────────┘   │
-└───────────────────────┼──────────────────────────┘
-                        │
-        ┌───────────────▼───────────────┐
-        │  Any OpenAI-compatible API    │
-        │  (NVIDIA NIM / Groq / Ollama  │
-        │   / OpenRouter / etc.)        │
-        └───────────────────────────────┘
-```
+The client, generated-content flow, and serverless AI boundary are documented in the project diagram below.
+
+![Trace Kernel system architecture](public/docs/sys-architecture.svg)
+
+## Workflow
+
+From a learner prompt to an interactive lesson, the workflow keeps generation, validation, visualization, and the Copilot in one clear loop.
+
+![Trace Kernel generation workflow](public/docs/workflow.svg)
 
 ### Key Architecture Decisions
 
@@ -171,6 +158,8 @@ api/                        # Vercel Serverless Functions
 
 ## Local Development
 
+Requirements: Node.js 20+ and npm.
+
 ```bash
 # Install dependencies
 npm install
@@ -187,6 +176,8 @@ cp .env.example .env
 # Start the Vercel-compatible dev server
 npx vercel dev
 ```
+
+For the static frontend only, `npm run dev` starts Vite without serverless API routes.
 
 ### Live AI Mode
 
@@ -224,6 +215,8 @@ concept/
 ```
 
 The content loader (`src/lib/contentLoader.ts`) uses Vite's `import.meta.glob` to eagerly load metadata and lazily load simulations. Adding a new concept requires zero changes to routing, sidebar, or app shell code.
+
+See [`context/add-concept.md`](context/add-concept.md) for the complete authoring guide, including metadata, trace, logic, and reference templates.
 
 ---
 
