@@ -36,9 +36,18 @@ function SuppliedModel({
   const isCompact = size.width < 700;
 
   useEffect(() => {
+    const createdMaterials: THREE.Material[] = [];
+
     scene.traverse((child) => {
       if (child instanceof THREE.Mesh) {
-        child.material = new THREE.MeshStandardMaterial({
+        const previous = child.material;
+        if (Array.isArray(previous)) {
+          previous.forEach((material) => material.dispose());
+        } else {
+          previous.dispose();
+        }
+
+        const material = new THREE.MeshStandardMaterial({
           color: CHROME_COLOR,
           metalness: 0.95,
           roughness: 0.12,
@@ -46,10 +55,17 @@ function SuppliedModel({
           emissiveIntensity: 0.08,
           envMapIntensity: 1.6,
         });
+
+        createdMaterials.push(material);
+        child.material = material;
         child.castShadow = true;
         child.receiveShadow = true;
       }
     });
+
+    return () => {
+      createdMaterials.forEach((material) => material.dispose());
+    };
   }, [scene]);
 
   useEffect(() => {
